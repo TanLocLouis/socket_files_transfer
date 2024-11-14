@@ -1,0 +1,6 @@
+- DONE single client-server 
+- DONE open 4 socket to stream data
+- split file to chunk and numbering to transfer
+- create a list of transferred data
+- update input.txt file real time
+- multiple client with server

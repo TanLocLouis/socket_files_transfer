@@ -1,0 +1,17 @@
+512 bit for entire header
+
+2^2 bit: for start-cur-end (00:start, 01:middle, 11:end)
+2^64 bit: for the number of chunk
+
+2^64 bit for: starting sequence
+2^64 bit for: ending sequence
+
+2^64 bit for: current starting sequence
+2^64 bit for: current ending sequence
+
+190 bit for redundance: often empty, use when necessary.
+
+
+-----------------------------------------------------------------------------------
+- client need to check whether is has received full 322 bit of header data or not.
+- base on current ending sequence we can estimate copying file progress.
