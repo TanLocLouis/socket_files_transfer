@@ -3,6 +3,12 @@ import socket
 HOST='127.0.0.1'
 PORT=6969
 
+def readInputFile(filename):
+    with open(filename, 'r') as file:
+        rows = [line.strip() for line in file.readlines()]
+    return rows
+
+
 def downloadFromServer(filename):
     with open(filename, 'r') as file:
         rows = file.readlines()
@@ -10,22 +16,30 @@ def downloadFromServer(filename):
     # Connect to the main server port
     server_address = (HOST, PORT)
     main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    main_socket.connect(server_address)
+    try:
+        main_socket.connect(server_address)
+    except ConnectionRefusedError:
+        print(f"Server {HOST} is not running!")
+        return
+    
+    # Send content you want to download on input.txt to server
+    data = readInputFile(filename)
+    main_socket.sendall(str(data).encode())
 
     # Receive the additional port numbers
     additional_ports = main_socket.recv(1024).decode()
     additional_ports = eval(additional_ports)  # Convert to list
-    print(f"Received additional ports: {additional_ports}")
+    print(f"We will connect to 4 streams of data at {HOST} on port: {additional_ports}")
 
     # Connect to each additional port
     for port in additional_ports:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(('localhost', port))
-        print(f"Connected to server on port {port}")
+        print(f"Connected to server {HOST} on port {port}")
         
-        # Receive confirmation from server
+        # Here is where client receive data
         msg = sock.recv(1024).decode()
-        print(f"Server says: {msg}")
+        print(msg)
         sock.close()
         
     main_socket.close()
