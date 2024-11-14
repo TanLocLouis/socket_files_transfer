@@ -1,4 +1,5 @@
 import socket
+import time
 
 HOST='127.0.0.1'
 PORT=6969
@@ -34,13 +35,14 @@ def downloadFromServer(filename):
     # Connect to each additional port
     for port in additional_ports:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('localhost', port))
+        sock.connect((HOST, port))
         print(f"Connected to server {HOST} on port {port}")
         
-        # Here is where client receive data
+        # DEBUG Here is where client receive data
         msg = sock.recv(1024).decode()
         print(msg)
         sock.close()
+        time.sleep(5)
         
     main_socket.close()
 

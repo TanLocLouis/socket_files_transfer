@@ -1,3 +1,4 @@
+from msvcrt import kbhit
 import socket
 import threading
 
@@ -10,7 +11,7 @@ def handleSplitfile(filename):
 def handleClient(client_socket, port, reqFiles):
     print(f"Connected on {client_socket}")
 
-    #Here is where server send data
+    # DEBUG Here is where server send data
     print(f"Transfering {reqFiles}...")
     client_socket.send(f"".encode())
     client_socket.close()
@@ -41,17 +42,32 @@ def createServer():
         working_ports = [PORT + 1, PORT + 2, PORT + 3, PORT + 4]
         # Send these 4 ports to client
         conn.send(f"{working_ports}".encode())
-        # Create 4 threads for data transfer        
+        # Create 4 threads for data transfer    
+        
+        additional_socket_list = []
+        thread_list = [server_socket]
         for port in working_ports:
             additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             additional_socket.bind((HOST, port))
             # Listen for only 1 incoming connections on additional ports
             additional_socket.listen(4)
             print(f"Listening on additional port {port}")
-            
+                       
+            additional_socket_list.append(additional_socket)            
+
             # Accept connection on each additional port
             client_thread = threading.Thread(target=lambda: handleClient(additional_socket.accept()[0], port, reqFiles))
-            client_thread.start()        
+            client_thread.start()
+            thread_list.append(client_thread)
+            
 
-        # Close the connection
+        # Join all threads to auto close all connections when main thread is shutdown
+        for thread in thread_list:  
+            thread.join()
+    
+        # Close the connection for each additional socket
+        for additional_socket in additional_socket_list:
+            additional_socket.close()
+        
+        # And also close the main server socket
         conn.close()  

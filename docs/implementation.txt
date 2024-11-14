@@ -4,3 +4,4 @@
 - create a list of transferred data
 - update input.txt file real time
 - multiple client with server
+- what if one of 4 socket disconnected from server
