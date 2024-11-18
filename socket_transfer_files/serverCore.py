@@ -4,70 +4,73 @@ import threading
 
 HOST='127.0.0.1'
 PORT=6969
+class SocketServer:
+    def __init__(self) -> None:
+        print("Initializing the server...")        
 
-def handleSplitfile(filename):
-    return
+    def handleSplitfile(self, filename):
+        return
 
-def handleClient(client_socket, port, reqFiles):
-    print(f"Connected on {client_socket}")
+    def handleClient(self, client_socket, port, reqFiles):
+        print(f"Connected on {client_socket}")
 
-    # DEBUG Here is where server send data
-    print(f"Transfering {reqFiles}...")
-    client_socket.send(f"".encode())
-    client_socket.close()
+        # DEBUG Here is where server send data
+        print(f"Transfering {reqFiles}...")
+        client_socket.send(f"".encode())
+        client_socket.close()
 
 
-def createServer():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        # Handle errors
-        try:
-            # Bind the socket to the address
-            server_socket.bind((HOST, PORT))
-        except OSError as e:
-            print("Cannot create server!")
-            return
-        
-        # Listen for incoming connections
-        server_socket.listen()
-        print(f"Server listening on {HOST}:{PORT}")
-        # Wait for a connection
-        conn, addr = server_socket.accept()
-        print("Connected by", addr);
-
-        # Receive a list of file you want to download
-        reqFiles = conn.recv(1024).decode()
-        print(f"Server want to get: {reqFiles}");
-
-        # Open more 4 next ports for data transfer
-        working_ports = [PORT + 1, PORT + 2, PORT + 3, PORT + 4]
-        # Send these 4 ports to client
-        conn.send(f"{working_ports}".encode())
-        # Create 4 threads for data transfer    
-        
-        additional_socket_list = []
-        thread_list = [server_socket]
-        for port in working_ports:
-            additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            additional_socket.bind((HOST, port))
-            # Listen for only 1 incoming connections on additional ports
-            additional_socket.listen(4)
-            print(f"Listening on additional port {port}")
-                       
-            additional_socket_list.append(additional_socket)            
-
-            # Accept connection on each additional port
-            client_thread = threading.Thread(target=lambda: handleClient(additional_socket.accept()[0], port, reqFiles))
-            client_thread.start()
-            thread_list.append(client_thread)
+    def createServer(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            # Handle errors
+            try:
+                # Bind the socket to the address
+                server_socket.bind((HOST, PORT))
+            except OSError as e:
+                print("Cannot create server!")
+                return
             
+            # Listen for incoming connections
+            server_socket.listen()
+            print(f"Server listening on {HOST}:{PORT}")
+            # Wait for a connection
+            conn, addr = server_socket.accept()
+            print("Connected by", addr);
 
-        # Join all threads to auto close all connections when main thread is shutdown
-        for thread in thread_list:  
-            thread.join()
-    
-        # Close the connection for each additional socket
-        for additional_socket in additional_socket_list:
-            additional_socket.close()
+            # Receive a list of file you want to download
+            reqFiles = conn.recv(1024).decode()
+            print(f"Server want to get: {reqFiles}");
+
+            # Open more 4 next ports for data transfer
+            working_ports = [PORT + 1, PORT + 2, PORT + 3, PORT + 4]
+            # Send these 4 ports to client
+            conn.send(f"{working_ports}".encode())
+            # Create 4 threads for data transfer    
+            
+            additional_socket_list = []
+            thread_list = [server_socket]
+            for port in working_ports:
+                additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                additional_socket.bind((HOST, port))
+                # Listen for only 1 incoming connections on additional ports
+                additional_socket.listen(4)
+                print(f"Listening on additional port {port}")
+                           
+                additional_socket_list.append(additional_socket)            
+
+                # Accept connection on each additional port
+                client_thread = threading.Thread(target=lambda: self.handleClient(additional_socket.accept()[0], port, reqFiles))
+                client_thread.start()
+                thread_list.append(client_thread)
+                
+
+            # Join all threads to auto close all connections when main thread is shutdown
+            for thread in thread_list:  
+                thread.join()
         
-        # And also close the main server socket
-        conn.close()  
+            # Close the connection for each additional socket
+            for additional_socket in additional_socket_list:
+                additional_socket.close()
+           
+            # And also close the main server socket
+            conn.close()  

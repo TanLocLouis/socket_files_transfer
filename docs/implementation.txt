@@ -1,7 +1,15 @@
 - DONE single client-server 
 - DONE open 4 socket to stream data
+- use heartbeat to check connection status
+- what if one of 4 socket disconnected from server
+- what if main socket disconnect from server => need to reconnect
+
 - split file to chunk and numbering to transfer
 - create a list of transferred data
-- update input.txt file real time
+
 - multiple client with server
-- what if one of 4 socket disconnected from server
+- update input.txt file real time
+
+
+Way to implement using TCP and UDP
+https://stackoverflow.com/questions/1781312/question-about-file-transfer-for-socket-programming

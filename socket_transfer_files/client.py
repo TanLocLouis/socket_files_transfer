@@ -28,7 +28,8 @@ if choice == 0:
     print("Exiting...")
 if choice == 1:
     print("Downloading file from server with input.txt")
-    clientCore.downloadFromServer(filename)
+    c1 = clientCore.SocketClient()
+    c1.downloadFromServer(filename)
 
 #-----------------SETTINGS UP CONSOLE-----------------#
 
