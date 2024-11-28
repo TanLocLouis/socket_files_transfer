@@ -1,5 +1,7 @@
 import utils
 import clientCore
+import signal
+import sys
 
 #-----------------SETTINGS UP CONSOLE-----------------#
 screenWidth = 80
@@ -29,7 +31,14 @@ if choice == 0:
 if choice == 1:
     print("Downloading file from server with input.txt")
     c1 = clientCore.SocketClient()
-    c1.downloadFromServer(filename)
+    c1.connect_to_server(filename)
+    
+#Press Ctrl + C to exit
+def handle_exit(signum, frame):
+    print("\nCtrl+C detected. Exiting program...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, handle_exit)
 
 #-----------------SETTINGS UP CONSOLE-----------------#
 
