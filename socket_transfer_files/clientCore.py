@@ -1,8 +1,11 @@
 from importlib import metadata
+from re import T
 import socket
 import time
 import json
 import threading
+import math
+import os
 
 HOST='127.0.0.1'
 PORT=6969
@@ -44,11 +47,32 @@ class SocketClient:
             sock.connect((HOST, port))
             socket_list.append(sock)
             print(f"Connected to server {HOST} on port {port}")
-          
-        metadata = self.receive_metadata(main_socket)
-        metadata = eval(metadata)  # Convert to list
-        print(metadata)
-        self.receive_file_in_chunks(socket_list, "output.png", metadata[2] + 1)
+         
+        needed_files = self.read_input_file(filename)
+        received_files = []
+        cur_index = 0
+        while len(received_files) < len(needed_files):
+            # Reupdate list of files needed to download
+            needed_files = self.read_input_file(filename)
+            if (len(received_files) == len(needed_files)):
+                break
+            
+            # Send request to server
+            main_socket.send(needed_files[cur_index].encode())
+
+            # get specific file from server
+            metadata = self.receive_metadata(main_socket)
+            metadata = eval(metadata)  # Convert to list
+            print(metadata)
+            
+            # DEBUG
+            res = self.receive_file_in_chunks(socket_list, "downloaded_" + needed_files[cur_index], metadata)
+            if res:
+                received_files.append(res)
+                cur_index = cur_index + 1
+           
+               
+            time.sleep(1)
 
         main_socket.close()
 
@@ -66,10 +90,7 @@ class SocketClient:
         with open(filename, 'r') as file:
             rows = [line.strip() for line in file.readlines()]
             
-        # Convert to JSON
-        rows_json = json.dumps(rows)
-        
-        return rows_json
+        return rows
 
     def handle_pipe(self, pipe_socket):
         # DEBUG Here is where client receive data
@@ -77,7 +98,7 @@ class SocketClient:
         print(msg, end="")
         pipe_socket.close()
         
-    def receive_file_in_chunks(self, sockets, output_file, total_chunks):
+    def receive_file_in_chunks(self, sockets, output_file, metadata):
         """
         Receive file chunks from multiple sockets and reassemble them.
 
@@ -86,22 +107,38 @@ class SocketClient:
         :param total_chunks: Total number of chunks to expect.
         """
         received_chunks = {}
-        while len(received_chunks) < total_chunks:
+        while len(received_chunks) < metadata[2]:
             try:
-                data = sockets[0].recv(CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE)  # Allow space for sequence number
+                data = sockets[0].recv(metadata[1])  # Allow space for sequence number
                 if data:
                     # Extract sequence number and chunk
                     sequence_number, chunk = data.split(b"\r\n", 1)
 
                     received_chunks[int(sequence_number)] = chunk
+                    print(f"{int(sequence_number)} : {metadata}")
+                    print(f"Downloading file {output_file}: {math.trunc(int(sequence_number) / metadata[2] * 100)}%")
+                    
+                    # DEBUG
+                    time.sleep(0.01)
             except BlockingIOError:
                 continue  # Non-blocking socket, no data yet
         
         # Reassemble the file
         with open(output_file, 'wb') as file:
-            for i in range(total_chunks):
+            for i in range(metadata[2]):
                 file.write(received_chunks[i])
-
-        print("Transfer file done")
+                
+        # Check file size
+        if self.get_file_size(output_file) == metadata[0]:
+            print("Transfer file done")
+            return output_file
+        else:
+            print("Transfer file failed")
+            return None
    
+    def get_file_size(self, filename):
+        """
+        Get the size of the file in bytes.
+        """
+        return os.path.getsize(filename)
 

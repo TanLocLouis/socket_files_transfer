@@ -58,10 +58,13 @@ class SocketServer:
                 pipe_conn, addr = additional_socket.accept()
                 pipe_list.append(pipe_conn)            
            
-
-            # Send metadata
-            self.send_meta_data("elon.png", conn)
-            self.sendfile_in_chunks("elon.png", pipe_list)
+            while True:
+                # Wait for the client to send the request
+                filename = conn.recv(1024).decode()
+                
+                # Send metadata
+                self.send_meta_data(filename, conn)
+                self.sendfile_in_chunks(filename, pipe_list)
             
             # And also close the main server socket
             conn.close()
@@ -70,11 +73,11 @@ class SocketServer:
         """
         Send metadata to the client.
         """
-        file_size = self.get_file_size("elon.png");
+        file_size = self.get_file_size(filename);
         
         # Send metadata to client
         chunk_number = file_size // CHUNK_SIZE 
-        metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number]
+        metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number + 1]
         conn.send(f"{metadata}".encode())             
 
     def get_file_size(self, filename):
