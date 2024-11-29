@@ -2,19 +2,14 @@ from importlib import metadata
 from re import T
 import socket
 import time
-import json
-import threading
 import math
 import os
 
 HOST='127.0.0.1'
 PORT=6969
 INPUT_UPDATE_INTERVAL = 5
-CHUNK_SIZE = 1024
-HEADER_SIZE = 8
 PIPES = 4
 METADATA_SIZE = 1024
-DELIMETER_SIZE = 2 # for \r\n
 
 class SocketClient:
     def connect_to_server(self, filename):
@@ -31,8 +26,8 @@ class SocketClient:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             main_socket.connect(server_address)
-        except ConnectionRefusedError:
-            print(f"Server {HOST} is not running!")
+        except Exception as e:
+            print(e)
             return
         
         # Receive the additional port numbers
@@ -63,16 +58,13 @@ class SocketClient:
             # get specific file from server
             metadata = self.receive_metadata(main_socket)
             metadata = eval(metadata)  # Convert to list
-            print(metadata)
             
-            # DEBUG
             res = self.receive_file_in_chunks(socket_list, "downloaded_" + needed_files[cur_index], metadata)
             if res:
                 received_files.append(res)
                 cur_index = cur_index + 1
            
-               
-            time.sleep(1)
+            time.sleep(3)
 
         main_socket.close()
 
@@ -92,12 +84,6 @@ class SocketClient:
             
         return rows
 
-    def handle_pipe(self, pipe_socket):
-        # DEBUG Here is where client receive data
-        msg = pipe_socket.recv(1024).decode()
-        print(msg, end="")
-        pipe_socket.close()
-        
     def receive_file_in_chunks(self, sockets, output_file, metadata):
         """
         Receive file chunks from multiple sockets and reassemble them.
@@ -106,35 +92,31 @@ class SocketClient:
         :param output_file: Path to save the reassembled file.
         :param total_chunks: Total number of chunks to expect.
         """
-        received_chunks = {}
-        while len(received_chunks) < metadata[2]:
-            try:
-                data = sockets[0].recv(metadata[1])  # Allow space for sequence number
-                if data:
-                    # Extract sequence number and chunk
-                    sequence_number, chunk = data.split(b"\r\n", 1)
-
-                    received_chunks[int(sequence_number)] = chunk
-                    print(f"{int(sequence_number)} : {metadata}")
-                    print(f"Downloading file {output_file}: {math.trunc(int(sequence_number) / metadata[2] * 100)}%")
-                    
-                    # DEBUG
-                    time.sleep(0.01)
-            except BlockingIOError:
-                continue  # Non-blocking socket, no data yet
         
-        # Reassemble the file
+        received_chunks = 0
         with open(output_file, 'wb') as file:
-            for i in range(metadata[2]):
-                file.write(received_chunks[i])
-                
-        # Check file size
+            while received_chunks < metadata[2]:
+                try:
+                    data = sockets[received_chunks % PIPES].recv(metadata[1])
+                    if data:
+                        sequence_number, chunk = data.split(b"\r\n", 1)
+                        sequence_number = int(sequence_number)
+                        file.seek(sequence_number * metadata[3])
+                        file.write(chunk)
+                        # Progress bar
+                        print(f"Downloading file {output_file}: {math.trunc(sequence_number / metadata[2] * 100)}%")
+                        received_chunks += 1
+                except Exception as e:
+                    print(f"Error: {e}")
+                    
         if self.get_file_size(output_file) == metadata[0]:
-            print("Transfer file done")
+            print(f"File {output_file} has been downloaded successfully")
             return output_file
         else:
-            print("Transfer file failed")
+            print(f"File {output_file} has been downloaded unsuccessfully")
             return None
+  
+
    
     def get_file_size(self, filename):
         """

@@ -1,9 +1,6 @@
 from msvcrt import kbhit
 from site import makepath
 import socket
-import threading
-import time
-import json
 import os
 
 HOST='127.0.0.1'
@@ -21,6 +18,7 @@ class SocketServer:
 
     def create_server(self):
         """
+                    time.sleep(0.01)
         Create a server that listens for incoming connections.
         """
         
@@ -29,8 +27,8 @@ class SocketServer:
             try:
                 # Bind the socket to the address
                 server_socket.bind((HOST, PORT))
-            except OSError as e:
-                print("Cannot create server!")
+            except Exception as e:
+                print(e)
                 return
             
             # Listen for incoming connections
@@ -77,7 +75,7 @@ class SocketServer:
         
         # Send metadata to client
         chunk_number = file_size // CHUNK_SIZE 
-        metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number + 1]
+        metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number + 1, CHUNK_SIZE]
         conn.send(f"{metadata}".encode())             
 
     def get_file_size(self, filename):
@@ -104,7 +102,7 @@ class SocketServer:
                 # Prepare data with sequence number
                 data = f"{chunk_number_str}\r\n".encode() + chunk
                 # Send data over one of the sockets (e.g., round-robin)
-                sockets[0].sendall(data)
+                sockets[chunk_number % PIPES].send(data)
                 chunk_number += 1
                 
     def standardize_str(self, s, n):

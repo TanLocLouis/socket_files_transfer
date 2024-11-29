@@ -19,17 +19,19 @@ print(screenWidth * "-", end="")
 print(utils.setTextColor('white'))
 
 print("0. Exit")
-print("1. Download file from server with input.txt")
+print("1. Download file from server with input.txt with TCP")
+print("2. Download file from server with input.txt with UDP")
 
 # Processing users' choice
 print()
 print("Choose your option: ", end="")
 choice = int(input())
 
+# Select choice from menu
 if choice == 0:
     print("Exiting...")
 if choice == 1:
-    print("Downloading file from server with input.txt")
+    print("Downloading file from server with input.txt with TCP")
     c1 = clientCore.SocketClient()
     c1.connect_to_server(filename)
     
