@@ -1,5 +1,3 @@
-from importlib import metadata
-from re import T
 import socket
 import time
 import math
@@ -103,6 +101,7 @@ class SocketClient:
                         sequence_number = int(sequence_number)
                         file.seek(sequence_number * metadata[3])
                         file.write(chunk)
+                        
                         # Progress bar
                         print(f"Downloading file {output_file}: {math.trunc(sequence_number / metadata[2] * 100)}%")
                         received_chunks += 1

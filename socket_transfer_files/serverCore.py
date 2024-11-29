@@ -1,7 +1,6 @@
-from msvcrt import kbhit
-from site import makepath
 import socket
 import os
+import threading
 
 HOST='127.0.0.1'
 PORT=6969
@@ -16,9 +15,44 @@ class SocketServer:
     def __init__(self) -> None:
         print("Initializing the server...")        
 
+    def handle_client_connection(self, conn, addr):
+        # Open more 4 next ports for data transfer
+       
+        working_ports = []
+        for i in range(4):
+            port = self.find_free_port()
+            working_ports.append(port)
+            
+        # Send these 4 ports to client
+        conn.send(f"{working_ports}".encode())
+        
+        # Create 4 threads for data transfer    
+        pipe_list = []
+        for port in working_ports:
+            additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            additional_socket.bind((HOST, port))
+            # Listen for only 1 incoming connections on additional ports
+            additional_socket.listen(4)
+            print(f"Listening on additional port {port}")
+                      
+            # Accept connection on each additional port
+            pipe_conn, addr = additional_socket.accept()
+            pipe_list.append(pipe_conn)            
+       
+        while True:
+            # Wait for the client to send the request
+            filename = conn.recv(1024).decode()
+            
+            # Send metadata
+            self.send_meta_data(filename, conn)
+            self.sendfile_in_chunks(filename, pipe_list)
+        
+        # And also close the main server socket
+        conn.close()
+        
+
     def create_server(self):
         """
-                    time.sleep(0.01)
         Create a server that listens for incoming connections.
         """
         
@@ -38,34 +72,8 @@ class SocketServer:
             conn, addr = server_socket.accept()
             print("Connected by", addr);
            
-            # Open more 4 next ports for data transfer
-            working_ports = [PORT + 1, PORT + 2, PORT + 3, PORT + 4]
-            # Send these 4 ports to client
-            conn.send(f"{working_ports}".encode())
-            
-            # Create 4 threads for data transfer    
-            pipe_list = []
-            for port in working_ports:
-                additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                additional_socket.bind((HOST, port))
-                # Listen for only 1 incoming connections on additional ports
-                additional_socket.listen(4)
-                print(f"Listening on additional port {port}")
-                          
-                # Accept connection on each additional port
-                pipe_conn, addr = additional_socket.accept()
-                pipe_list.append(pipe_conn)            
-           
-            while True:
-                # Wait for the client to send the request
-                filename = conn.recv(1024).decode()
-                
-                # Send metadata
-                self.send_meta_data(filename, conn)
-                self.sendfile_in_chunks(filename, pipe_list)
-            
-            # And also close the main server socket
-            conn.close()
+            client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
+            client_thread.start()
            
     def send_meta_data(self, filename, conn):
         """
@@ -101,10 +109,18 @@ class SocketServer:
                     
                 # Prepare data with sequence number
                 data = f"{chunk_number_str}\r\n".encode() + chunk
-                # Send data over one of the sockets (e.g., round-robin)
+                
                 sockets[chunk_number % PIPES].send(data)
                 chunk_number += 1
-                
+        
+    def find_free_port(self):
+        """
+        Find a free port on the server.
+        """
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((HOST, 0))
+            return s.getsockname()[1]
+    
     def standardize_str(self, s, n):
        while len(s) < n:
            s = '0' + s
