@@ -29,16 +29,17 @@ class SocketServer:
             except Exception as e:
                 print(e)
                 return
-            
-            # Listen for incoming connections
-            server_socket.listen()
-            print(f"Server listening on {self.HOST}:{self.PORT}")
-            # Wait for a connection
-            conn, addr = server_socket.accept()
-            print("Connected by", addr);
            
-            client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
-            client_thread.start()
+            while True:
+                # Listen for incoming connections
+                server_socket.listen()
+                print(f"Server listening on {self.HOST}:{self.PORT}")
+                # Wait for a connection
+                conn, addr = server_socket.accept()
+                print("Connected by", addr);
+               
+                client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
+                client_thread.start()
             
     def handle_client_connection(self, conn, addr):
         # Send a list of available resources to client
