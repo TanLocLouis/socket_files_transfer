@@ -2,7 +2,7 @@ import socket
 import os
 import threading
 
-HOST='127.0.0.1'
+HOST=socket.gethostbyname(socket.gethostname())
 PORT=6969
 INPUT_UPDATE_INTERVAL = 1 # Musk be smaller then in client
 CHUNK_SIZE = 1024
