@@ -5,7 +5,7 @@ import os
 import utils
 
 class SocketClient:
-    HOST='192.168.56.1'
+    HOST='127.0.1.1'
     PORT=6969
     INPUT_UPDATE_INTERVAL = 5
     PIPES = 4
@@ -39,7 +39,9 @@ class SocketClient:
      
     def handle_server_connection(self, filename, main_socket):
         # Receive a list of available resources from server can be downloaded
-        list_file = main_socket.recv(1024).decode()
+        list_file = main_socket.recv(1024).decode()        
+        # Remove the spaces
+        list_file = list_file.strip()
         list_file = eval(list_file)  # Convert to list
         print(utils.setTextColor('green'), end="")
         print(f"List of available resources:")

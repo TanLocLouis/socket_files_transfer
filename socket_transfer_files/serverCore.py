@@ -44,6 +44,8 @@ class SocketServer:
     def handle_client_connection(self, conn, addr):
         # Send a list of available resources to client
         list_file = self.list_all_file_in_directory(self.RESOURCE_PATH)
+        # Fill list file with space to make it 1024 bytes
+        list_file = self.standardize_str(str(list_file), 1024)
         conn.sendall(f"{list_file}".encode())
 
         # Open more 4 next ports for data transfer by master port
@@ -112,5 +114,5 @@ class SocketServer:
 
     def standardize_str(self, s, n):
        while len(s) < n:
-           s = '0' + s
+           s += ' '
        return s
