@@ -1,6 +1,7 @@
 import socket
 import os
 import threading
+import time
 
 HOST=socket.gethostbyname(socket.gethostname())
 PORT=6969
@@ -8,9 +9,9 @@ INPUT_UPDATE_INTERVAL = 1 # Musk be smaller then in client
 CHUNK_SIZE = 1024
 HEADER_SIZE = 8
 PIPES = 4
-METADATA_SIZE = 1024
 DELIMETER_SIZE = 2 # for \r\n
 RESOURCE_PATH = './resources/'
+MESSAGE_SIZE = 256
 
 class SocketServer:
     def __init__(self) -> None:
@@ -45,76 +46,51 @@ class SocketServer:
         list_file = self.list_all_file_in_directory(RESOURCE_PATH)
         conn.sendall(f"{list_file}".encode())
 
-        # Open more 4 next ports for data transfer
-        working_ports = []
-        for i in range(4):
-            port = self.find_free_port()
-            working_ports.append(port)
+        # Open more 4 next ports for data transfer by master port
+        master_port = self.find_free_port()
             
-        # Send these 4 ports to client
-        conn.sendall(f"{working_ports}".encode())
+        # Send master to open 4 ports to client
+        conn.sendall(f"{master_port}".encode())
         
         # Create 4 threads for data transfer    
         pipe_list = []
-        for port in working_ports:
-            additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            additional_socket.bind((HOST, port))
-            # Listen for only 1 incoming connections on additional ports
-            additional_socket.listen(4)
-            print(f"Listening on additional port {port}")
+        master_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        master_socket.bind((HOST, master_port))
+        for i in range(PIPES):
+            # Listen for only 4 incoming connections on master ports
+            master_socket.listen(1)
                       
-            # Accept connection on each additional port
-            pipe_conn, addr = additional_socket.accept()
-            pipe_list.append(pipe_conn)            
+            # Accept connection on each master port
+            pipe_conn, addr = master_socket.accept()
+            print(f"Listening on master port {addr}")
+            pipe_list.append(pipe_conn)
        
         while True:
-            # Wait for the client to send the request
-            filename = conn.recv(1024).decode()
-            
-            # Send metadata
-            self.send_meta_data(RESOURCE_PATH + filename, conn)
-            self.sendfile_in_chunks(RESOURCE_PATH + filename, pipe_list)
+            # Wait for the client to send the request for specific chunk
+            chunk_offset = conn.recv(MESSAGE_SIZE).decode()
+            # Remove all ending space in chunk_offset
+            print(f"Received request for chunk {chunk_offset.strip()}")
+
+            # Server return specific chunk to client
+            self.send_chunk(chunk_offset, conn)
         
         # And also close the main server socket
         conn.close()
-           
-    def send_meta_data(self, filename, conn):
-        """
-        Send metadata to the client.
-        """
-        file_size = self.get_file_size(filename);
+    
+    def send_chunk(self, chunk_offset, conn):
+        filename, start_offset, end_offset = eval(chunk_offset.strip())
+        with open(RESOURCE_PATH + filename, 'rb') as file:
+                file.seek(start_offset)
+                chunk = file.read(end_offset - start_offset + 1)
+                data = f"{chunk_offset}\r\n".encode() + chunk
+                conn.sendall(data)
+                print(f"Sent chunk {chunk_offset.strip()}")
         
-        # Send metadata to client
-        chunk_number = file_size // CHUNK_SIZE 
-        metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number + 1, CHUNK_SIZE]
-        conn.sendall(f"{metadata}".encode())             
-
     def get_file_size(self, filename):
         """
         Get the size of the file in bytes.
         """
         return os.path.getsize(filename)
-
-    def sendfile_in_chunks(self, file_path, sockets):
-        """
-        Send a file in chunks over multiple sockets.
-
-        :param file_path: Path to the file to send.
-        :param sockets: List of socket connections.
-        """
-        chunk_size = CHUNK_SIZE  # Size of each chunk
-        with open(file_path, 'rb') as file:
-            chunk_number = 0 
-                
-            while chunk := file.read(chunk_size):
-                chunk_number_str = str(chunk_number)
-                chunk_number_str = self.standardize_str(chunk_number_str, HEADER_SIZE)
-                    
-                # Prepare data with sequence number
-                data = f"{chunk_number_str}\r\n".encode() + chunk
-                
-                sockets[chunk_number % PIPES].sendall(data)
-                chunk_number += 1
         
     def find_free_port(self):
         """

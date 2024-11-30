@@ -1,3 +1,3 @@
-elon.png
-trump.png
-pepe.png
+elon.png 1,074,346b
+trump.png 468,407b
+pepe.png 394,670b
