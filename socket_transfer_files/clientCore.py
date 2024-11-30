@@ -1,24 +1,20 @@
-from doctest import master
 import socket
 import time
 import math
 import os
 import utils
 
-from serverCore import RESOURCE_PATH
-
-HOST='192.168.56.1'
-PORT=6969
-INPUT_UPDATE_INTERVAL = 5
-PIPES = 4
-METADATA_SIZE = 1024
-
-CHUNK_SIZE = 1024
-HEADER_SIZE = 8
-DELIMETER_SIZE = 2 # for \r\n
-MESSAGE_SIZE = 256
-
 class SocketClient:
+    HOST='192.168.56.1'
+    PORT=6969
+    INPUT_UPDATE_INTERVAL = 5
+    PIPES = 4
+    METADATA_SIZE = 1024
+
+    CHUNK_SIZE = 1024
+    HEADER_SIZE = 8
+    DELIMETER_SIZE = 2 # for \r\n
+    MESSAGE_SIZE = 256
    
     def connect_to_server(self, filename):
         """
@@ -30,7 +26,7 @@ class SocketClient:
             rows = file.readlines()
            
         # Connect to the main server port
-        server_address = (HOST, PORT)
+        server_address = (self.HOST, self.PORT)
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             main_socket.connect(server_address)
@@ -56,16 +52,16 @@ class SocketClient:
         # Receive the additional port numbers
         master_port = main_socket.recv(1024).decode()
         print(utils.setTextColor('green'), end="")
-        print(f"We will connect to 4 streams of data at {HOST} by requesting on port {master_port} on the server")
+        print(f"We will connect to 4 streams of data at {self.HOST} by requesting on port {master_port} on the server")
         print(utils.setTextColor('white'), end="")
 
         # Connect to master port to create 4 pipe
         socket_list = []
-        for i in range(PIPES):
+        for i in range(self.PIPES):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((HOST, int(master_port)))
+            sock.connect((self.HOST, int(master_port)))
             socket_list.append(sock)
-        print(f"Connected to server {HOST} on 4 new ports")
+        print(f"Connected to server {self.HOST} on 4 new ports")
         
         needed_files = self.parse_input_file(filename)
         received_files = []
@@ -77,10 +73,10 @@ class SocketClient:
                 break
          
             # Receive the chunk from the server
-            self.receive_chunk(needed_files, cur_index, main_socket)          
-            
+            self.receive_chunk(needed_files, cur_index, main_socket, socket_list)          
+
             # Check file size to ensure file is transferred successfully
-            if self.get_file_size(RESOURCE_PATH + needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
+            if self.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
                 print(utils.setTextColor('green'), end="")
                 print(f"File {needed_files[cur_index]} has been downloaded successfully")
                 print(utils.setTextColor('white'), end="")
@@ -89,6 +85,8 @@ class SocketClient:
             else:
                 print(utils.setTextColor('green'), end="")
                 print(f"File {needed_files[cur_index]} has been downloaded unsuccessfully")
+                print(f"Expected file size: {needed_files[cur_index]['size_bytes']} bytes")
+                print(f"Received file size: {self.get_file_size(needed_files[cur_index]['name'])} bytes")
                 print(utils.setTextColor('white'), end="")
             
             time.sleep(3)
@@ -98,16 +96,16 @@ class SocketClient:
         print(f"Downloads successfully {len(received_files)}/{len(needed_files)} files")        
         print(utils.setTextColor('white'), end="")
 
-    def receive_chunk(self, needed_files, cur_index, main_socket):
+    def receive_chunk(self, needed_files, cur_index, main_socket, socket_list):
         """
         Receive a chunk from the server.
         """
        # Send the chunk message which client want to download from server
         cur_file_size = needed_files[cur_index]['size_bytes']
-        number_of_chunk = cur_file_size // CHUNK_SIZE
+        number_of_chunk = cur_file_size // self.CHUNK_SIZE + 1
         for chunk in range(number_of_chunk):
-            start_offset = chunk * CHUNK_SIZE
-            end_offset = (chunk + 1) * CHUNK_SIZE - 1
+            start_offset = chunk * self.CHUNK_SIZE
+            end_offset = (chunk + 1) * self.CHUNK_SIZE - 1
             if end_offset > cur_file_size - 1:
                 end_offset = cur_file_size - 1
            
@@ -115,11 +113,11 @@ class SocketClient:
             message = [needed_files[cur_index]['name'], start_offset, end_offset]
             print(f"Requesting chunk {message}")
             # Make the message len 1024
-            message = str(message).ljust(MESSAGE_SIZE)
+            message = str(message).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message.encode())
             
-            # Receive the chunk from server
-            data = main_socket.recv(MESSAGE_SIZE + DELIMETER_SIZE + CHUNK_SIZE)
+            # Receive the chunk from server through 4 pipes
+            data = socket_list[(start_offset // self.CHUNK_SIZE) % self.PIPES].recv(self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
             if data:
                 message, chunk_data = data.split(b"\r\n", 1)
                 
@@ -130,7 +128,7 @@ class SocketClient:
                 # Get the sequence number of the chunk
                 print(f"Received chunk {message.strip()}")
                 
-                with open(f"downloaded_{needed_files[cur_index]['name']}", 'ab') as file:
+                with open(f"{needed_files[cur_index]['name']}", 'ab') as file:
                     file.write(chunk_data)
 
   
