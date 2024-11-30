@@ -5,7 +5,7 @@ import os
 import utils
 
 class SocketClient:
-    HOST='127.0.1.1'
+    HOST='192.168.56.1'
     PORT=6969
     INPUT_UPDATE_INTERVAL = 5
     PIPES = 4
@@ -31,7 +31,7 @@ class SocketClient:
         try:
             main_socket.connect(server_address)
         except Exception as e:
-            print(e)
+            print(f"[ERROR] {e}")
             return
         
         self.handle_server_connection(filename, main_socket)
@@ -44,17 +44,17 @@ class SocketClient:
         list_file = list_file.strip()
         list_file = eval(list_file)  # Convert to list
         print(utils.setTextColor('green'), end="")
-        print(f"List of available resources:")
+        print(f"[RESPONE] List of available resources:")
         print(utils.setTextColor('white'), end="")
         for file in list_file:
-            print(f"|----------{file}----------|")
+            print(f"[LIST] |----------{file}----------|")
         print("Press Enter to continue...")
         input()
 
         # Receive the additional port numbers
         master_port = main_socket.recv(1024).decode()
         print(utils.setTextColor('green'), end="")
-        print(f"We will connect to 4 streams of data at {self.HOST} by requesting on port {master_port} on the server")
+        print(f"[STATUS] We will connect to 4 streams of data at {self.HOST} by requesting on port {master_port} on the server")
         print(utils.setTextColor('white'), end="")
 
         # Connect to master port to create 4 pipe
@@ -63,7 +63,7 @@ class SocketClient:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.HOST, int(master_port)))
             socket_list.append(sock)
-        print(f"Connected to server {self.HOST} on 4 new ports")
+        print(f"[STATUS] Connected to server {self.HOST} on 4 new ports")
         
         needed_files = self.parse_input_file(filename)
         received_files = []
@@ -80,15 +80,15 @@ class SocketClient:
             # Check file size to ensure file is transferred successfully
             if self.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
                 print(utils.setTextColor('green'), end="")
-                print(f"File {needed_files[cur_index]} has been downloaded successfully")
+                print(f"[SUCCESS] File {needed_files[cur_index]} has been downloaded successfully")
                 print(utils.setTextColor('white'), end="")
                 received_files.append(needed_files[cur_index]['name'])
                 cur_index += 1
             else:
                 print(utils.setTextColor('green'), end="")
-                print(f"File {needed_files[cur_index]} has been downloaded unsuccessfully")
-                print(f"Expected file size: {needed_files[cur_index]['size_bytes']} bytes")
-                print(f"Received file size: {self.get_file_size(needed_files[cur_index]['name'])} bytes")
+                print(f"[FAIL] File {needed_files[cur_index]} has been downloaded unsuccessfully")
+                print(f"[DETAIL] Expected file size: {needed_files[cur_index]['size_bytes']} bytes")
+                print(f"[DETAIL] Received file size: {self.get_file_size(needed_files[cur_index]['name'])} bytes")
                 print(utils.setTextColor('white'), end="")
             
             time.sleep(3)
@@ -113,7 +113,7 @@ class SocketClient:
            
             # Send message to server
             message = [needed_files[cur_index]['name'], start_offset, end_offset]
-            print(f"Requesting chunk {message}")
+            print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len 1024
             message = str(message).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message.encode())
@@ -124,11 +124,11 @@ class SocketClient:
                 message, chunk_data = data.split(b"\r\n", 1)
                 
                 # Progress bar
-                print(f"Downloading file {needed_files[cur_index]}: {math.trunc(chunk / number_of_chunk * 100)}%")
+                print(f"[STATUS] Downloading file {needed_files[cur_index]}: {math.trunc(chunk / number_of_chunk * 100)}%")
                 
                 # Emiminate the sequence number spaces
                 # Get the sequence number of the chunk
-                print(f"Received chunk {message.strip()}")
+                print(f"[STATUS] Received chunk {message.strip()}")
                 
                 with open(f"{needed_files[cur_index]['name']}", 'ab') as file:
                     file.write(chunk_data)
@@ -170,6 +170,6 @@ class SocketClient:
                                 'size_bytes': size_bytes
                             })
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"[ERROR] An error occurred: {e}")
         
         return data
