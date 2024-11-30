@@ -27,7 +27,16 @@ class SocketClient:
         except Exception as e:
             print(e)
             return
-        
+       
+        # Receive a list of available resources from server can be downloaded
+        list_file = main_socket.recv(1024).decode()
+        list_file = eval(list_file)  # Convert to list
+        print(f"List of available resources:")
+        for file in list_file:
+            print(f"|----------{file}----------|")
+        print("Press Enter to continue...")
+        input()
+
         # Receive the additional port numbers
         additional_ports = main_socket.recv(1024).decode()
         additional_ports = eval(additional_ports)  # Convert to list
@@ -63,6 +72,9 @@ class SocketClient:
                 cur_index = cur_index + 1
            
             time.sleep(3)
+
+        # Confirmation
+        print(f"Downloads successfully {len(received_files)}/{len(needed_files)} files")        
 
         main_socket.close()
 
@@ -103,7 +115,7 @@ class SocketClient:
                         file.write(chunk)
                         
                         # Progress bar
-                        print(f"Downloading file {output_file}: {math.trunc(sequence_number / metadata[2] * 100)}%")
+                        print(f"Downloading file {output_file}: {math.trunc(received_chunks * metadata[3] / metadata[0] * 100)}%")
                         received_chunks += 1
                 except Exception as e:
                     print(f"Error: {e}")

@@ -10,46 +10,11 @@ HEADER_SIZE = 8
 PIPES = 4
 METADATA_SIZE = 1024
 DELIMETER_SIZE = 2 # for \r\n
+RESOURCE_PATH = './resources/'
 
 class SocketServer:
     def __init__(self) -> None:
         print("Initializing the server...")        
-
-    def handle_client_connection(self, conn, addr):
-        # Open more 4 next ports for data transfer
-       
-        working_ports = []
-        for i in range(4):
-            port = self.find_free_port()
-            working_ports.append(port)
-            
-        # Send these 4 ports to client
-        conn.send(f"{working_ports}".encode())
-        
-        # Create 4 threads for data transfer    
-        pipe_list = []
-        for port in working_ports:
-            additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            additional_socket.bind((HOST, port))
-            # Listen for only 1 incoming connections on additional ports
-            additional_socket.listen(4)
-            print(f"Listening on additional port {port}")
-                      
-            # Accept connection on each additional port
-            pipe_conn, addr = additional_socket.accept()
-            pipe_list.append(pipe_conn)            
-       
-        while True:
-            # Wait for the client to send the request
-            filename = conn.recv(1024).decode()
-            
-            # Send metadata
-            self.send_meta_data(filename, conn)
-            self.sendfile_in_chunks(filename, pipe_list)
-        
-        # And also close the main server socket
-        conn.close()
-        
 
     def create_server(self):
         """
@@ -74,6 +39,44 @@ class SocketServer:
            
             client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
             client_thread.start()
+            
+    def handle_client_connection(self, conn, addr):
+        # Send a list of available resources to client
+        list_file = self.list_all_file_in_directory(RESOURCE_PATH)
+        conn.sendall(f"{list_file}".encode())
+
+        # Open more 4 next ports for data transfer
+        working_ports = []
+        for i in range(4):
+            port = self.find_free_port()
+            working_ports.append(port)
+            
+        # Send these 4 ports to client
+        conn.sendall(f"{working_ports}".encode())
+        
+        # Create 4 threads for data transfer    
+        pipe_list = []
+        for port in working_ports:
+            additional_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            additional_socket.bind((HOST, port))
+            # Listen for only 1 incoming connections on additional ports
+            additional_socket.listen(4)
+            print(f"Listening on additional port {port}")
+                      
+            # Accept connection on each additional port
+            pipe_conn, addr = additional_socket.accept()
+            pipe_list.append(pipe_conn)            
+       
+        while True:
+            # Wait for the client to send the request
+            filename = conn.recv(1024).decode()
+            
+            # Send metadata
+            self.send_meta_data(RESOURCE_PATH + filename, conn)
+            self.sendfile_in_chunks(RESOURCE_PATH + filename, pipe_list)
+        
+        # And also close the main server socket
+        conn.close()
            
     def send_meta_data(self, filename, conn):
         """
@@ -84,7 +87,7 @@ class SocketServer:
         # Send metadata to client
         chunk_number = file_size // CHUNK_SIZE 
         metadata = [file_size, CHUNK_SIZE + HEADER_SIZE + DELIMETER_SIZE, chunk_number + 1, CHUNK_SIZE]
-        conn.send(f"{metadata}".encode())             
+        conn.sendall(f"{metadata}".encode())             
 
     def get_file_size(self, filename):
         """
@@ -110,7 +113,7 @@ class SocketServer:
                 # Prepare data with sequence number
                 data = f"{chunk_number_str}\r\n".encode() + chunk
                 
-                sockets[chunk_number % PIPES].send(data)
+                sockets[chunk_number % PIPES].sendall(data)
                 chunk_number += 1
         
     def find_free_port(self):
@@ -120,7 +123,14 @@ class SocketServer:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((HOST, 0))
             return s.getsockname()[1]
-    
+   
+    def list_all_file_in_directory(self, dir):
+        """
+        List all files in the current directory.
+        """
+        files = os.listdir(dir)
+        return files
+
     def standardize_str(self, s, n):
        while len(s) < n:
            s = '0' + s
