@@ -1,3 +1,4 @@
+from doctest import master
 import socket
 import os
 import threading
@@ -7,7 +8,7 @@ class SocketServer:
     HOST=socket.gethostbyname(socket.gethostname())
     PORT=6969
     INPUT_UPDATE_INTERVAL = 1 # Musk be smaller then in client
-    CHUNK_SIZE = 1024
+    CHUNK_SIZE = 1048576 # 1 MB
     HEADER_SIZE = 8
     PIPES = 4
     DELIMETER_SIZE = 2 # for \r\n
@@ -61,11 +62,11 @@ class SocketServer:
         
         # And also close the main server socket
         conn.close()
-        
+
     def send_resources_list(self, conn):
         list_file = self.list_all_file_in_directory(self.RESOURCE_PATH)
-        # Fill list file with space to make it 1024 bytes
-        list_file = self.standardize_str(str(list_file), 1024)
+        # Fill list file with space to make it match standard size
+        list_file = self.standardize_str(str(list_file), self.MESSAGE_SIZE)
         conn.sendall(f"{list_file}".encode())
         
     def create_pipes(self, conn):
@@ -110,7 +111,7 @@ class SocketServer:
                         file.seek(start_offset)
                         chunk = file.read(end_offset - start_offset + 1)
                         data = f"{chunk_offset}\r\n".encode() + chunk
-                        tmp[(start_offset // 1024) % 4].sendall(data)
+                        tmp[(start_offset // self.CHUNK_SIZE) % 4].sendall(data)
                         print(f"[STATUS] Sent chunk {chunk_offset.strip()}")
         except ConnectionResetError:
             print("[ERROR] Connection forcibly closed by the client.")

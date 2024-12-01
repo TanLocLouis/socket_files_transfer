@@ -10,7 +10,7 @@ class SocketClient:
     PIPES = 4
     METADATA_SIZE = 1024
 
-    CHUNK_SIZE = 1024
+    CHUNK_SIZE = 1048576 # 1 MB
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2 # for \r\n
     MESSAGE_SIZE = 256
@@ -38,26 +38,6 @@ class SocketClient:
         self.handle_server_connection(filename, main_socket)
         main_socket.close()
      
-    def receive_resource_list(self, main_socket):
-        list_file = main_socket.recv(1024).decode()        
-        return list_file        
-
-    def create_pipes(self, main_socket):
-        # Receive the additional port numbers
-        master_port = main_socket.recv(1024).decode()
-        print(utils.setTextColor('green'), end="")
-        print(f"[STATUS] We will connect to 4 streams of data at {self.HOST} by requesting on port {master_port} on the server")
-        print(utils.setTextColor('white'), end="")
-
-        # Connect to master port to create 4 pipe
-        socket_list = []
-        for i in range(self.PIPES):
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((self.HOST, int(master_port)))
-            socket_list.append(sock)
-        print(f"[STATUS] Connected to server {self.HOST} on 4 new ports")
-        return socket_list
-
     def handle_server_connection(self, filename, main_socket):
         # Receive a list of available resources from server can be downloaded
         list_file = self.receive_resource_list(main_socket)
@@ -107,6 +87,26 @@ class SocketClient:
 
         # Confirmation
         self.confirm_download(needed_files, received_files) 
+        
+    def receive_resource_list(self, main_socket):
+        list_file = main_socket.recv(self.MESSAGE_SIZE).decode()        
+        return list_file        
+
+    def create_pipes(self, main_socket):
+        # Receive the additional port numbers
+        master_port = main_socket.recv(self.MESSAGE_SIZE).decode()
+        print(utils.setTextColor('green'), end="")
+        print(f"[STATUS] We will connect to 4 streams of data at {self.HOST} by requesting on port {master_port} on the server")
+        print(utils.setTextColor('white'), end="")
+
+        # Connect to master port to create 4 pipe
+        socket_list = []
+        for i in range(self.PIPES):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.HOST, int(master_port)))
+            socket_list.append(sock)
+        print(f"[STATUS] Connected to server {self.HOST} on 4 new ports")
+        return socket_list
 
     def receive_chunk(self, needed_files, cur_index, main_socket, socket_list):
         """
@@ -124,7 +124,7 @@ class SocketClient:
             # Send message to server
             message = [needed_files[cur_index]['name'], start_offset, end_offset]
             print(f"[REQUEST] Requesting chunk {message}")
-            # Make the message len 1024
+            # Make the message len MESSAGE_SIZE
             message = str(message).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message.encode())
             
