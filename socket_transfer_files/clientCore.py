@@ -1,7 +1,6 @@
 import socket
 import time
 import math
-import os
 import utils
 
 class SocketClient:
@@ -31,26 +30,19 @@ class SocketClient:
         try:
             main_socket.connect(server_address)
         except Exception as e:
-            print(f"[ERROR] {e}")
+            print(utils.setTextColor('red'), end="")
+            print(f"[ERROR] An error occurred: {e}")
+            print(utils.setTextColor('white'), end="")
             return
         
         self.handle_server_connection(filename, main_socket)
         main_socket.close()
      
-    def handle_server_connection(self, filename, main_socket):
-        # Receive a list of available resources from server can be downloaded
+    def receive_resource_list(self, main_socket):
         list_file = main_socket.recv(1024).decode()        
-        # Remove the spaces
-        list_file = list_file.strip()
-        list_file = eval(list_file)  # Convert to list
-        print(utils.setTextColor('green'), end="")
-        print(f"[RESPONE] List of available resources:")
-        print(utils.setTextColor('white'), end="")
-        for file in list_file:
-            print(f"[LIST] |----------{file}----------|")
-        print("Press Enter to continue...")
-        input()
+        return list_file        
 
+    def create_pipes(self, main_socket):
         # Receive the additional port numbers
         master_port = main_socket.recv(1024).decode()
         print(utils.setTextColor('green'), end="")
@@ -64,7 +56,28 @@ class SocketClient:
             sock.connect((self.HOST, int(master_port)))
             socket_list.append(sock)
         print(f"[STATUS] Connected to server {self.HOST} on 4 new ports")
+        return socket_list
+
+    def handle_server_connection(self, filename, main_socket):
+        # Receive a list of available resources from server can be downloaded
+        list_file = self.receive_resource_list(main_socket)
         
+        # Remove the spaces
+        list_file = list_file.strip()
+        list_file = eval(list_file)  # Convert to list
+        
+        print(utils.setTextColor('green'), end="")
+        print(f"[RESPONE] List of available resources:")
+        print(utils.setTextColor('white'), end="")
+        for file in list_file:
+            print(f"[LIST] |----------{file}----------|")
+        print("Press Enter to continue...")
+        input()
+
+        # Create 4 pipes for data transfer
+        socket_list = self.create_pipes(main_socket)
+        
+        # Read the input file
         needed_files = self.parse_input_file(filename)
         received_files = []
         cur_index = 0
@@ -74,29 +87,26 @@ class SocketClient:
             if (len(received_files) >= len(needed_files)):
                 break
          
+            # Check if the file is already downloaded
+            if utils.check_file_exist(needed_files[cur_index]['name']):
+                print(utils.setTextColor('green'), end="")
+                print(f"[STATUS] File {needed_files[cur_index]} has already been downloaded")
+                print(utils.setTextColor('white'), end="")
+                received_files.append(needed_files[cur_index]['name'])
+                cur_index += 1
+                time.sleep(3)
+                continue
+
             # Receive the chunk from the server
             self.receive_chunk(needed_files, cur_index, main_socket, socket_list)          
 
             # Check file size to ensure file is transferred successfully
-            if self.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
-                print(utils.setTextColor('green'), end="")
-                print(f"[SUCCESS] File {needed_files[cur_index]} has been downloaded successfully")
-                print(utils.setTextColor('white'), end="")
-                received_files.append(needed_files[cur_index]['name'])
-                cur_index += 1
-            else:
-                print(utils.setTextColor('green'), end="")
-                print(f"[FAIL] File {needed_files[cur_index]} has been downloaded unsuccessfully")
-                print(f"[DETAIL] Expected file size: {needed_files[cur_index]['size_bytes']} bytes")
-                print(f"[DETAIL] Received file size: {self.get_file_size(needed_files[cur_index]['name'])} bytes")
-                print(utils.setTextColor('white'), end="")
+            cur_index += self.check_file_integrity(cur_index, needed_files, received_files) 
             
             time.sleep(3)
 
         # Confirmation
-        print(utils.setTextColor('green'), end="")
-        print(f"Downloads successfully {len(received_files)}/{len(needed_files)} files")        
-        print(utils.setTextColor('white'), end="")
+        self.confirm_download(needed_files, received_files) 
 
     def receive_chunk(self, needed_files, cur_index, main_socket, socket_list):
         """
@@ -126,20 +136,31 @@ class SocketClient:
                 # Progress bar
                 print(f"[STATUS] Downloading file {needed_files[cur_index]}: {math.trunc(chunk / number_of_chunk * 100)}%")
                 
-                # Emiminate the sequence number spaces
-                # Get the sequence number of the chunk
                 print(f"[STATUS] Received chunk {message.strip()}")
                 
                 with open(f"{needed_files[cur_index]['name']}", 'ab') as file:
                     file.write(chunk_data)
+                    
+    def check_file_integrity(self, cur_index, needed_files, received_files):
+        if utils.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
+            print(utils.setTextColor('green'), end="")
+            print(f"[SUCCESS] File {needed_files[cur_index]} has been downloaded successfully")
+            print(utils.setTextColor('white'), end="")
+            received_files.append(needed_files[cur_index]['name'])
+            return 1
+        else:
+            print(utils.setTextColor('green'), end="")
+            print(f"[FAIL] File {needed_files[cur_index]} has been downloaded unsuccessfully")
+            print(f"[DETAIL] Expected file size: {needed_files[cur_index]['size_bytes']} bytes")
+            print(f"[DETAIL] Received file size: {utils.get_file_size(needed_files[cur_index]['name'])} bytes")
+            print(utils.setTextColor('white'), end="")
+            return 0
 
-  
-    def get_file_size(self, filename):
-        """
-        Get the size of the file in bytes.
-        """
-        return os.path.getsize(filename)
-
+    def confirm_download(self, needed_files, received_files):
+        print(utils.setTextColor('green'), end="")
+        print(f"Downloads successfully {len(received_files)}/{len(needed_files)} files")        
+        print(utils.setTextColor('white'), end="")
+ 
     def parse_input_file(self, file_path):
         """
         Reads a file with image data and returns a list of dictionaries with the parsed data.
@@ -170,6 +191,8 @@ class SocketClient:
                                 'size_bytes': size_bytes
                             })
         except Exception as e:
+            print(utils.setTextColor('red'), end="")
             print(f"[ERROR] An error occurred: {e}")
+            print(utils.setTextColor('white'), end="")
         
-        return data
+        return data 

@@ -1,8 +1,7 @@
-from msvcrt import kbhit
-from re import A
 import socket
 import os
 import threading
+import utils
 
 class SocketServer:
     HOST=socket.gethostbyname(socket.gethostname())
@@ -49,15 +48,27 @@ class SocketServer:
                 print("[STATUS] Server is shutting down...")
                 server_socket.close()
                 return
-            
+
     def handle_client_connection(self, conn, addr):
         # Send a list of available resources to client
+        self.send_resources_list(conn)
+        
+        # Open more 4 next pipes for data transfer by master port
+        tmp = self.create_pipes(conn)
+            
+        # Server return specific chunk to client
+        self.send_chunk(conn, tmp)
+        
+        # And also close the main server socket
+        conn.close()
+        
+    def send_resources_list(self, conn):
         list_file = self.list_all_file_in_directory(self.RESOURCE_PATH)
         # Fill list file with space to make it 1024 bytes
         list_file = self.standardize_str(str(list_file), 1024)
         conn.sendall(f"{list_file}".encode())
-
-        # Open more 4 next ports for data transfer by master port
+        
+    def create_pipes(self, conn):
         master_port = self.find_free_port()
             
         # Send master to open 4 ports to client
@@ -80,12 +91,7 @@ class SocketServer:
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
             
             tmp.append(pipe_conn)
-            
-        # Server return specific chunk to client
-        self.send_chunk(conn, tmp)
-        
-        # And also close the main server socket
-        conn.close()
+        return tmp
     
     def send_chunk(self, conn, tmp):
         try:
@@ -115,12 +121,6 @@ class SocketServer:
             conn.close()
             for pipe in tmp:
                 pipe.close()
-        
-    def get_file_size(self, filename):
-        """
-        Get the size of the file in bytes.
-        """
-        return os.path.getsize(filename)
         
     def find_free_port(self):
         """

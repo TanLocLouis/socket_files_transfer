@@ -25,3 +25,16 @@ def setTextColor(color):
     else:
         return '\033[0m'
 #-----------------------UTILS FUNCTIONS FOR CONSOLE-----------------------#
+
+def get_file_size(filename):
+    """
+    Get the size of the file in bytes.
+    """
+    return os.path.getsize(filename)
+
+def check_file_exist(filename):
+    """
+    Check if the file exists.
+    """
+    return os.path.exists(filename)
+

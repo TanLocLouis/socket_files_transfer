@@ -14,7 +14,7 @@ filename = "input.txt"
 utils.clearScreen()
 print(utils.setTextColor('green'))
 print(screenWidth * "-")
-print(TITLE)
+print('|' + utils.setTextColor('cyan') + ' ' * ((screenWidth - len(TITLE)) // 2 - 1) + TITLE + ' ' * ((screenWidth - len(TITLE)) // 2 - 1) + utils.setTextColor('green') + '|')
 print(screenWidth * "-", end="")
 print(utils.setTextColor('white'))
 
