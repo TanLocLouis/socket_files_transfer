@@ -2,6 +2,8 @@ import socket
 import time
 import math
 import utils
+import threading
+import os
 
 class SocketClient:
     HOST='192.168.56.1'
@@ -81,7 +83,7 @@ class SocketClient:
             self.receive_chunk(needed_files, cur_index, main_socket, socket_list)          
 
             # Check file size to ensure file is transferred successfully
-            cur_index += self.check_file_integrity(cur_index, needed_files, received_files) 
+            cur_index += self.check_file_integrity(cur_index, needed_files, received_files)
             
             time.sleep(3)
 
@@ -115,8 +117,10 @@ class SocketClient:
         # Send the chunk message which client want to download from server
         cur_file_size = needed_files[cur_index]['size_bytes']
         
-        self.CHUNK_SIZE = round(cur_file_size / self.PIPES)
-        number_of_chunk = cur_file_size // self.CHUNK_SIZE + 1
+        self.CHUNK_SIZE = math.ceil(cur_file_size / self.PIPES)
+        number_of_chunk = math.ceil(cur_file_size / self.CHUNK_SIZE)
+        threads_list = []
+        
         for chunk in range(number_of_chunk):
             start_offset = chunk * self.CHUNK_SIZE
             end_offset = (chunk + 1) * self.CHUNK_SIZE - 1
@@ -124,24 +128,43 @@ class SocketClient:
                 end_offset = cur_file_size - 1
            
             # Send message to server
-            message = [needed_files[cur_index]['name'], start_offset, end_offset]
+            message = [needed_files[cur_index]['name'], cur_file_size, start_offset, end_offset]
             print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len MESSAGE_SIZE
             message = str(message).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message.encode())
             
             # Receive the chunk from server through 4 pipes
-            data = socket_list[(start_offset // self.CHUNK_SIZE) % self.PIPES].recv(self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
-            if data:
-                message, chunk_data = data.split(b"\r\n", 1)
-                
-                # Progress bar
-                print(f"[STATUS] Downloading file {needed_files[cur_index]}: {math.trunc(chunk / number_of_chunk * 100)}%")
-                
-                print(f"[RESPOND] Received chunk {message.strip()}")
-                
-                with open(f"{needed_files[cur_index]['name']}", 'ab') as file:
-                    file.write(chunk_data)
+            id = start_offset // self.CHUNK_SIZE % self.PIPES
+            t = threading.Thread(target=self.handle_receive_chunk, args=(id, socket_list))
+            t.start()
+            threads_list.append(t)
+            
+        for t in threads_list:
+            t.join()
+        print("[STATUS] All chunks has been received: 100%")
+        
+        # Concat those files
+        for id in range(self.PIPES):
+            with open(f"{needed_files[cur_index]['name']}", "ab") as file:
+                with open(f"{needed_files[cur_index]['name']}_{id}", "rb") as chunk_file:
+                    file.write(chunk_file.read())
+                os.remove(f"{needed_files[cur_index]['name']}_{id}")
+                            
+
+    def handle_receive_chunk(self, id, socket_list, ):
+        data = socket_list[id].recv(self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+        if data:
+            message, chunk_data = data.split(b"\r\n", 1)
+            filename, file_size, start_offset, end_offset = eval(message.strip())
+            
+            # Progress bar
+            print(f"[STATUS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%")
+            
+            print(f"[RESPOND] Received chunk {message.strip()}")
+            
+            with open(f"{filename}_{id}", 'wb') as file:
+                file.write(chunk_data)
 
     def check_file_integrity(self, cur_index, needed_files, received_files):
         if utils.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:

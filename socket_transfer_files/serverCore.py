@@ -116,7 +116,7 @@ class SocketServer:
                 pipe.close()
     
     def handle_send_chunk(self, message, tmp):
-        filename, start_offset, end_offset = eval(message.strip())
+        filename, file_size, start_offset, end_offset = eval(message.strip())
         with open(self.RESOURCE_PATH + filename, 'rb') as file:
                 file.seek(start_offset)
                 chunk = file.read(end_offset - start_offset + 1)

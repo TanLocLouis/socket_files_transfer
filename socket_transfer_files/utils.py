@@ -38,3 +38,9 @@ def check_file_exist(filename):
     """
     return os.path.exists(filename)
 
+def count_files_with_prefix(directory, prefix):
+    count = 0
+    for filename in os.listdir(directory):
+        if filename.startswith(prefix):
+            count += 1
+    return count
