@@ -112,8 +112,10 @@ class SocketClient:
         """
         Receive a chunk from the server.
         """
-       # Send the chunk message which client want to download from server
+        # Send the chunk message which client want to download from server
         cur_file_size = needed_files[cur_index]['size_bytes']
+        
+        self.CHUNK_SIZE = round(cur_file_size / self.PIPES)
         number_of_chunk = cur_file_size // self.CHUNK_SIZE + 1
         for chunk in range(number_of_chunk):
             start_offset = chunk * self.CHUNK_SIZE
@@ -136,11 +138,11 @@ class SocketClient:
                 # Progress bar
                 print(f"[STATUS] Downloading file {needed_files[cur_index]}: {math.trunc(chunk / number_of_chunk * 100)}%")
                 
-                print(f"[STATUS] Received chunk {message.strip()}")
+                print(f"[RESPOND] Received chunk {message.strip()}")
                 
                 with open(f"{needed_files[cur_index]['name']}", 'ab') as file:
                     file.write(chunk_data)
-                    
+
     def check_file_integrity(self, cur_index, needed_files, received_files):
         if utils.get_file_size(needed_files[cur_index]['name']) == needed_files[cur_index]['size_bytes']:
             print(utils.setTextColor('green'), end="")

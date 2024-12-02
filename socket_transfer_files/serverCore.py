@@ -2,16 +2,12 @@ from doctest import master
 import socket
 import os
 import threading
-import utils
 
 class SocketServer:
     HOST=socket.gethostbyname(socket.gethostname())
     PORT=6969
-    INPUT_UPDATE_INTERVAL = 1 # Musk be smaller then in client
-    CHUNK_SIZE = 1048576 # 1 MB
     HEADER_SIZE = 8
     PIPES = 4
-    DELIMETER_SIZE = 2 # for \r\n
     RESOURCE_PATH = './resources/'
     MESSAGE_SIZE = 256
 
@@ -39,8 +35,8 @@ class SocketServer:
                     # Wait for a connection
                     conn, addr = server_socket.accept()
                     print(f"[STATUS] Server listening on {self.HOST}:{self.PORT}")
-                    # Auto disconnect after 5 seconds
-                    conn.settimeout(5)
+                    # Auto disconnect after 10 seconds
+                    conn.settimeout(10)
                     print("[STATUS] Connected by", addr);
                    
                     client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
@@ -87,7 +83,7 @@ class SocketServer:
             # Accept connection on each master port
             pipe_conn, addr = master_socket.accept()
             # Auto disconnect after 5 seconds
-            pipe_conn.settimeout(5)
+            pipe_conn.settimeout(10)
             print(f"[STATUS] Listening on master port {addr}")
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
             
@@ -98,21 +94,17 @@ class SocketServer:
         try:
             while True:
                 # Wait for the client to send the request for specific chunk
-                chunk_offset = conn.recv(self.MESSAGE_SIZE).decode()
-                if not chunk_offset:
+                message = conn.recv(self.MESSAGE_SIZE).decode()
+                if not message:
                     print("[STATUS] Client disconnected")
                     break
                 
                 # Remove all ending space in chunk_offset
-                print(f"[STATUS] Received request for chunk {chunk_offset.strip()}")
-
-                filename, start_offset, end_offset = eval(chunk_offset.strip())
-                with open(self.RESOURCE_PATH + filename, 'rb') as file:
-                        file.seek(start_offset)
-                        chunk = file.read(end_offset - start_offset + 1)
-                        data = f"{chunk_offset}\r\n".encode() + chunk
-                        tmp[(start_offset // self.CHUNK_SIZE) % 4].sendall(data)
-                        print(f"[STATUS] Sent chunk {chunk_offset.strip()}")
+                print(f"[STATUS] Received request for chunk {message.strip()}")
+        
+                t = threading.Thread(target=self.handle_send_chunk, args=(message, tmp))
+                t.start()
+                
         except ConnectionResetError:
             print("[ERROR] Connection forcibly closed by the client.")
         except Exception as e:
@@ -122,7 +114,19 @@ class SocketServer:
             conn.close()
             for pipe in tmp:
                 pipe.close()
-        
+    
+    def handle_send_chunk(self, message, tmp):
+        filename, start_offset, end_offset = eval(message.strip())
+        with open(self.RESOURCE_PATH + filename, 'rb') as file:
+                file.seek(start_offset)
+                chunk = file.read(end_offset - start_offset + 1)
+                data = f"{message}\r\n".encode() + chunk
+                
+                self.CHUNK_SIZE = end_offset - start_offset + 1
+                id = (start_offset // self.CHUNK_SIZE) % self.PIPES
+                tmp[id].sendall(data)
+                print(f"[STATUS] Sent chunk {message.strip()}")
+                
     def find_free_port(self):
         """
         Find a free port on the server.
