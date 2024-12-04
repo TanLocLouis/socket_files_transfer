@@ -3,22 +3,23 @@ import socket
 import os
 import threading
 
+
 class SocketServer:
-    HOST=socket.gethostbyname(socket.gethostname())
-    PORT=6969
+    HOST = socket.gethostbyname(socket.gethostname())
+    PORT = 6969
     HEADER_SIZE = 8
     PIPES = 4
-    RESOURCE_PATH = './resources/'
+    RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
 
     def __init__(self) -> None:
-        print("[STATUS] Initializing the server...")        
+        print("[STATUS] Initializing the server...")
 
     def create_server(self):
         """
         Create a server that listens for incoming connections.
         """
-        
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             # Handle errors
             try:
@@ -27,19 +28,21 @@ class SocketServer:
             except Exception as e:
                 print(f"[ERROR] {e}")
                 return
-            
+
             try:
                 while True:
                     # Listen for incoming connections
                     server_socket.listen()
                     # Wait for a connection
-                    conn, addr = server_socket.accept()
                     print(f"[STATUS] Server listening on {self.HOST}:{self.PORT}")
+                    conn, addr = server_socket.accept()
                     # Auto disconnect after 10 seconds
                     conn.settimeout(10)
-                    print("[STATUS] Connected by", addr);
-                   
-                    client_thread = threading.Thread(target=self.handle_client_connection, args=(conn, addr))
+                    print("[STATUS] Connected by", addr)
+
+                    client_thread = threading.Thread(
+                        target=self.handle_client_connection, args=(conn, addr)
+                    )
                     client_thread.start()
             except KeyboardInterrupt:
                 print("[STATUS] Server is shutting down...")
@@ -49,13 +52,14 @@ class SocketServer:
     def handle_client_connection(self, conn, addr):
         # Send a list of available resources to client
         self.send_resources_list(conn)
-        
+
         # Open more 4 next pipes for data transfer by master port
+        # Return a list of pipes
         tmp = self.create_pipes(conn)
-            
+
         # Server return specific chunk to client
         self.send_chunk(conn, tmp)
-        
+
         # And also close the main server socket
         conn.close()
 
@@ -64,14 +68,14 @@ class SocketServer:
         # Fill list file with space to make it match standard size
         list_file = self.standardize_str(str(list_file), self.MESSAGE_SIZE)
         conn.sendall(f"{list_file}".encode())
-        
+
     def create_pipes(self, conn):
         master_port = self.find_free_port()
-            
+
         # Send master to open 4 ports to client
         conn.sendall(f"{master_port}".encode())
-        
-        # Create 4 threads for data transfer    
+
+        # Create 4 threads for data transfer
         pipe_list = []
         master_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         master_socket.bind((self.HOST, master_port))
@@ -79,17 +83,17 @@ class SocketServer:
         for _ in range(self.PIPES):
             # Listen for only 4 incoming connections on master ports
             master_socket.listen(1)
-                      
+
             # Accept connection on each master port
             pipe_conn, addr = master_socket.accept()
             # Auto disconnect after 5 seconds
             pipe_conn.settimeout(10)
             print(f"[STATUS] Listening on master port {addr}")
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
-            
+
             tmp.append(pipe_conn)
         return tmp
-    
+
     def send_chunk(self, conn, tmp):
         try:
             while True:
@@ -98,13 +102,13 @@ class SocketServer:
                 if not message:
                     print("[STATUS] Client disconnected")
                     break
-                
+
                 # Remove all ending space in chunk_offset
                 print(f"[STATUS] Received request for chunk {message.strip()}")
-        
+
                 t = threading.Thread(target=self.handle_send_chunk, args=(message, tmp))
                 t.start()
-                
+
         except ConnectionResetError:
             print("[ERROR] Connection forcibly closed by the client.")
         except Exception as e:
@@ -114,19 +118,19 @@ class SocketServer:
             conn.close()
             for pipe in tmp:
                 pipe.close()
-    
+
     def handle_send_chunk(self, message, tmp):
         filename, file_size, start_offset, end_offset = eval(message.strip())
-        with open(self.RESOURCE_PATH + filename, 'rb') as file:
-                file.seek(start_offset)
-                chunk = file.read(end_offset - start_offset + 1)
-                data = f"{message}\r\n".encode() + chunk
-                
-                self.CHUNK_SIZE = end_offset - start_offset + 1
-                id = (start_offset // self.CHUNK_SIZE) % self.PIPES
-                tmp[id].sendall(data)
-                print(f"[STATUS] Sent chunk {message.strip()}")
-                
+        with open(self.RESOURCE_PATH + filename, "rb") as file:
+            file.seek(start_offset)
+            chunk = file.read(end_offset - start_offset + 1)
+            data = f"{message}\r\n".encode() + chunk
+
+            self.CHUNK_SIZE = end_offset - start_offset + 1
+            id = (start_offset // self.CHUNK_SIZE) % self.PIPES
+            tmp[id].sendall(data)
+            print(f"[STATUS] Sent chunk {message.strip()}")
+
     def find_free_port(self):
         """
         Find a free port on the server.
@@ -134,7 +138,7 @@ class SocketServer:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.HOST, 0))
             return s.getsockname()[1]
-   
+
     def list_all_file_in_directory(self, dir):
         """
         List all files in the current directory.
@@ -143,6 +147,6 @@ class SocketServer:
         return files
 
     def standardize_str(self, s, n):
-       while len(s) < n:
-           s += ' '
-       return s
+        while len(s) < n:
+            s += " "
+        return s
