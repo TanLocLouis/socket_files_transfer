@@ -1,3 +1,4 @@
+from re import L
 import socket
 import time
 import math
@@ -16,7 +17,7 @@ class SocketClientUDP:
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
-
+    
     def connect_to_server(self, filename):
         """
         Connect to the server and send the request to download the file.
@@ -31,7 +32,26 @@ class SocketClientUDP:
             main_socket.close()
            
     def handle_server_connection(self, main_socket):
-        main_socket.sendto(b"Hello from client", (self.HOST, self.PORT))
+        # Request list of available resources
+        message = "LIST\r\n"
+        main_socket.sendto(message.encode(), (self.HOST, self.PORT))
+        
+        data, addr = main_socket.recvfrom(1024)
+        data = data.decode()
+        # Convert data to list
+        list_file = eval(data)
+
+        print(utils.setTextColor("green"), end="")
+        print(f"[RESPONE] List of available resources:")
+        print(utils.setTextColor("white"), end="")
+        for file in list_file:
+            print(f"[LIST] |----------{file}----------|")
+        print("Press Enter to continue...")
+        input()
+        
+
+
+
         
 s1 = SocketClientUDP()
 s1.connect_to_server("input.txt")

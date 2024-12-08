@@ -1,6 +1,8 @@
+from msilib import sequence
 import socket
 import os
 import threading
+import random
 
 class SocketServerUDP:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -9,6 +11,12 @@ class SocketServerUDP:
     PIPES = 4
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
+
+    CODE = {
+        "LIST": "LIST",
+        "GET": "GET",
+        "ACK": "ACK"
+    }
 
     def __init__(self) -> None:
         print("[STATUS] Initializing the server...")
@@ -35,13 +43,37 @@ class SocketServerUDP:
             while True:
                 # Wait for a connection
                 data, addr = server_socket.recvfrom(1024)
-                print(f"[REQUEST] Request from {addr}: {data}")
+                data = data.decode()
+                # Split \r\n from message
+                message = data.split("\r\n")[0]
+               
+                # Send a list of available resources to client
+                if message == self.CODE['LIST']:
+                    print("[REQUEST] Client request list of available resources...")
+                    self.send_resources_list(server_socket, addr)
+                # Send a chunk
+                if message == self.CODE['GET']:
+                    print("[REQUEST] Client request chunk...")
+                # ACK from client
+                if message == self.CODE['ACK']:
+                    print("[REQUEST] Client ACK for...")
 
         except KeyboardInterrupt:
             print("[STATUS] Server is shutting down...")
             server_socket.close()
             return
-        
+       
+    def send_resources_list(self, server_socket, addr):
+        """
+        Send a list of available resources to client.
+        """
+        # Get all files in the resources folder
+        files = os.listdir(self.RESOURCE_PATH)
+        # Convert to string
+        files = str(files)
+        # Send the list of available resources to client
+        server_socket.sendto(files.encode(), addr)
+
 s1 = SocketServerUDP()
 s1.create_server()
             

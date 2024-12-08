@@ -102,7 +102,7 @@ class SocketServer:
                     break
 
                 # Remove all ending space in chunk_offset
-                print(f"[REQUEST] Received request for chunk {message.strip()}")
+                print(f"[REQUEST] Received request for chunk {message.strip()} from {conn}")
 
                 t = threading.Thread(target=self.handle_send_chunk, args=(message, pipes_list))
                 t.start()
@@ -127,7 +127,7 @@ class SocketServer:
             self.CHUNK_SIZE = end_offset - start_offset + 1
             id = (start_offset // self.CHUNK_SIZE) % self.PIPES
             pipes_list[id].sendall(data)
-            print(f"[RESPOND] Sent chunk {message.strip()}")
+            print(f"[RESPOND] Sent chunk {message.strip()} to {pipes_list[id]}")
 
     def find_free_port(self):
         """

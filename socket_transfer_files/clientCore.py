@@ -45,7 +45,6 @@ class SocketClient:
     def handle_server_connection(self, filename, main_socket):
         # Receive a list of available resources from server can be downloaded
         list_file = self.receive_resource_list(main_socket)
-
         # Remove the spaces
         list_file = list_file.strip()
         list_file = eval(list_file)  # Convert to list
@@ -58,9 +57,10 @@ class SocketClient:
         print("Press Enter to continue...")
         input()
 
+
+
         # Create 4 pipes for data transfer
         socket_list = self.create_pipes(main_socket)
-
         # Read the input file
         needed_files = self.parse_input_file(filename)
         received_files = []
