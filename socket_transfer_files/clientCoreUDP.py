@@ -25,14 +25,14 @@ class SocketClientUDP:
         # self.HOST = server_ip
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            main_socket.sendto(b"Hello from client", (self.HOST, self.PORT))
+            self.handle_server_connection(main_socket)
         finally:
             # Close the socket
             main_socket.close()
            
-    def handle_server_connection(self):
+    def handle_server_connection(self, main_socket):
+        main_socket.sendto(b"Hello from client", (self.HOST, self.PORT))
         
-
 s1 = SocketClientUDP()
 s1.connect_to_server("input.txt")
          

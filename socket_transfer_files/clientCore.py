@@ -192,7 +192,7 @@ class SocketClient:
 
     def check_file_integrity(self, cur_index, needed_files, received_files):
         if (
-            utils.get_file_size(needed_files[cur_index]["name"])
+            utils.get_file_size(self.DOWNLOAD_DIR + needed_files[cur_index]["name"])
             == needed_files[cur_index]["size_bytes"]
         ):
             print(utils.setTextColor("green"), end="")
