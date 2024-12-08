@@ -1,4 +1,3 @@
-from doctest import master
 import socket
 import os
 import threading
@@ -55,10 +54,10 @@ class SocketServer:
 
         # Open more 4 next pipes for data transfer by master port
         # Return a list of pipes
-        tmp = self.create_pipes(conn)
+        pipes_list = self.create_pipes(conn)
 
         # Server return specific chunk to client
-        self.send_chunk(conn, tmp)
+        self.send_chunk(conn, pipes_list)
 
         # And also close the main server socket
         conn.close()
@@ -76,10 +75,9 @@ class SocketServer:
         conn.sendall(f"{master_port}".encode())
 
         # Create 4 threads for data transfer
-        pipe_list = []
         master_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         master_socket.bind((self.HOST, master_port))
-        tmp = []
+        pipes_list = []
         for _ in range(self.PIPES):
             # Listen for only 4 incoming connections on master ports
             master_socket.listen(1)
@@ -91,10 +89,10 @@ class SocketServer:
             print(f"[STATUS] Listening on master port {addr}")
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
 
-            tmp.append(pipe_conn)
-        return tmp
+            pipes_list.append(pipe_conn)
+        return pipes_list
 
-    def send_chunk(self, conn, tmp):
+    def send_chunk(self, conn, pipes_list):
         try:
             while True:
                 # Wait for the client to send the request for specific chunk
@@ -104,9 +102,9 @@ class SocketServer:
                     break
 
                 # Remove all ending space in chunk_offset
-                print(f"[STATUS] Received request for chunk {message.strip()}")
+                print(f"[REQUEST] Received request for chunk {message.strip()}")
 
-                t = threading.Thread(target=self.handle_send_chunk, args=(message, tmp))
+                t = threading.Thread(target=self.handle_send_chunk, args=(message, pipes_list))
                 t.start()
 
         except ConnectionResetError:
@@ -116,10 +114,10 @@ class SocketServer:
         finally:
             # Ensure connections are properly closed
             conn.close()
-            for pipe in tmp:
+            for pipe in pipes_list:
                 pipe.close()
 
-    def handle_send_chunk(self, message, tmp):
+    def handle_send_chunk(self, message, pipes_list):
         filename, file_size, start_offset, end_offset = eval(message.strip())
         with open(self.RESOURCE_PATH + filename, "rb") as file:
             file.seek(start_offset)
@@ -128,8 +126,8 @@ class SocketServer:
 
             self.CHUNK_SIZE = end_offset - start_offset + 1
             id = (start_offset // self.CHUNK_SIZE) % self.PIPES
-            tmp[id].sendall(data)
-            print(f"[STATUS] Sent chunk {message.strip()}")
+            pipes_list[id].sendall(data)
+            print(f"[RESPOND] Sent chunk {message.strip()}")
 
     def find_free_port(self):
         """

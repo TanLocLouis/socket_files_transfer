@@ -41,8 +41,9 @@ if choice == 0:
 if choice == 1:
     print("Downloading file from server with input.txt with TCP")
     c1 = clientCore.SocketClient()
-    c1.connect_to_server(filename)
-
+    server_ip = input("Enter server IP: ")
+    download_dir = input("Enter download path: ")
+    c1.connect_to_server(filename, download_dir, server_ip)
 
 # Press Ctrl + C to exit
 def handle_exit(signum, frame):

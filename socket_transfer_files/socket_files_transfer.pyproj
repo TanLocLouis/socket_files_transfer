@@ -26,8 +26,10 @@
   <ItemGroup>
     <Compile Include="client.py" />
     <Compile Include="clientCore.py" />
+    <Compile Include="clientCoreUDP.py" />
     <Compile Include="server.py" />
     <Compile Include="serverCore.py" />
+    <Compile Include="serverCoreUDP.py" />
     <Compile Include="utils.py" />
   </ItemGroup>
   <ItemGroup>

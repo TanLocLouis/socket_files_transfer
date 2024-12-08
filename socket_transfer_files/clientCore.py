@@ -17,16 +17,17 @@ class SocketClient:
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
+    
+    DOWNLOAD_DIR = "./"
 
-    def connect_to_server(self, filename):
+    def connect_to_server(self, filename, download_dir, server_ip):
         """
         Connect to the server and send the request to download the file.
         """
-
-        # Read the input file
-        with open(filename, "r") as file:
-            rows = file.readlines()
-
+        
+        self.HOST = server_ip
+        self.DOWNLOAD_DIR = download_dir
+        
         # Connect to the main server port
         server_address = (self.HOST, self.PORT)
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -71,7 +72,7 @@ class SocketClient:
                 break
 
             # Check if the file is already downloaded
-            if utils.check_file_exist(needed_files[cur_index]["name"]):
+            if utils.check_file_exist(self.DOWNLOAD_DIR + needed_files[cur_index]["name"]):
                 print(utils.setTextColor("green"), end="")
                 print(
                     f"[STATUS] File {needed_files[cur_index]} has already been downloaded"
@@ -158,9 +159,9 @@ class SocketClient:
             t.join()
         print("[STATUS] All chunks has been received: 100%")
 
-        # Concat those files
+        # Concatenate those files
         for id in range(self.PIPES):
-            with open(f"{needed_files[cur_index]['name']}", "ab") as file:
+            with open(f"{self.DOWNLOAD_DIR}{needed_files[cur_index]['name']}", "ab") as file:
                 with open(
                     f"{needed_files[cur_index]['name']}_{id}", "rb"
                 ) as chunk_file:
@@ -181,7 +182,7 @@ class SocketClient:
 
             # Progress bar
             print(
-                f"[STATUS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%"
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%"
             )
 
             print(f"[RESPOND] Received chunk {message.strip()}")

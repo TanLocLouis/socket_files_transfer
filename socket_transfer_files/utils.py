@@ -1,6 +1,5 @@
 import os
 
-
 # -----------------------UTILS FUNCTIONS FOR CONSOLE-----------------------#
 def clearScreen():
     os.system("cls")
