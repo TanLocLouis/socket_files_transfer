@@ -1,3 +1,4 @@
+from doctest import master
 import socket
 import time
 import math
@@ -57,8 +58,6 @@ class SocketClient:
         print("Press Enter to continue...")
         input()
 
-
-
         # Create 4 pipes for data transfer
         socket_list = self.create_pipes(main_socket)
         # Read the input file
@@ -97,11 +96,17 @@ class SocketClient:
         self.confirm_download(needed_files, received_files)
 
     def receive_resource_list(self, main_socket):
+        message = "LIST\r\n"
+        message = message.ljust(self.MESSAGE_SIZE)
+        main_socket.sendall(message.encode())
         list_file = main_socket.recv(self.MESSAGE_SIZE).decode()
         return list_file
 
     def create_pipes(self, main_socket):
         # Receive the additional port numbers
+        message = "OPEN\r\n"
+        message = message.ljust(self.MESSAGE_SIZE)
+        main_socket.sendall(message.encode())
         master_port = main_socket.recv(self.MESSAGE_SIZE).decode()
         print(utils.setTextColor("green"), end="")
         print(
@@ -144,7 +149,7 @@ class SocketClient:
             ]
             print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len MESSAGE_SIZE
-            message = str(message).ljust(self.MESSAGE_SIZE)
+            message = ("GET\r\n" + str(message)).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message.encode())
 
             # Receive the chunk from server through 4 pipes

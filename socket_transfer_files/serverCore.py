@@ -1,7 +1,7 @@
 import socket
 import os
 import threading
-
+import time
 
 class SocketServer:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -10,6 +10,12 @@ class SocketServer:
     PIPES = 4
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
+    
+    CODE = {
+        "LIST": "LIST",
+        "OPEN": "OPEN",
+        "GET": "GET"
+    }
 
     def __init__(self) -> None:
         print("[STATUS] Initializing the server...")
@@ -34,13 +40,13 @@ class SocketServer:
                     server_socket.listen()
                     # Wait for a connection
                     print(f"[STATUS] Server listening on {self.HOST}:{self.PORT}")
-                    conn, addr = server_socket.accept()
+                    master, addr = server_socket.accept()
                     # Auto disconnect after 10 seconds
-                    conn.settimeout(10)
+                    master.settimeout(10)
                     print("[STATUS] Connected by", addr)
 
                     client_thread = threading.Thread(
-                        target=self.handle_client_connection, args=(conn, addr)
+                        target=self.handle_client_connection, args=(master, addr)
                     )
                     client_thread.start()
             except KeyboardInterrupt:
@@ -48,31 +54,40 @@ class SocketServer:
                 server_socket.close()
                 return
 
-    def handle_client_connection(self, conn, addr):
-        # Send a list of available resources to client
-        self.send_resources_list(conn)
+    def handle_client_connection(self, master, addr):
+        pipes_list = []
+        
+        while True:
+            data = master.recv(self.MESSAGE_SIZE)
+            data = data.decode()
+            data = data.strip()
+            message = data.split("\r\n")[0]
+            print(f"DEBUG {message}") 
+            
+            if message == self.CODE["LIST"]:    
+                # Send a list of available resources to client
+                self.send_resources_list(master)
+            elif message == self.CODE["OPEN"]:
+                # Open more 4 next pipes for data transfer by master port
+                # Return a list of pipes
+                pipes_list = self.create_pipes(master)
+            elif message == self.CODE["GET"]:
+                # Server return specific chunk to client
+                payload = data.split("\r\n")[1]
+                print(f"DEBUG {payload}")
+                self.send_chunk(master, payload, addr, pipes_list)
 
-        # Open more 4 next pipes for data transfer by master port
-        # Return a list of pipes
-        pipes_list = self.create_pipes(conn)
-
-        # Server return specific chunk to client
-        self.send_chunk(conn, pipes_list)
-
-        # And also close the main server socket
-        conn.close()
-
-    def send_resources_list(self, conn):
+    def send_resources_list(self, master):
         list_file = self.list_all_file_in_directory(self.RESOURCE_PATH)
         # Fill list file with space to make it match standard size
         list_file = self.standardize_str(str(list_file), self.MESSAGE_SIZE)
-        conn.sendall(f"{list_file}".encode())
+        master.sendall(f"{list_file}".encode())
 
-    def create_pipes(self, conn):
+    def create_pipes(self, master):
         master_port = self.find_free_port()
 
         # Send master to open 4 ports to client
-        conn.sendall(f"{master_port}".encode())
+        master.sendall(f"{master_port}".encode())
 
         # Create 4 threads for data transfer
         master_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,7 +99,7 @@ class SocketServer:
 
             # Accept connection on each master port
             pipe_conn, addr = master_socket.accept()
-            # Auto disconnect after 5 seconds
+            # Auto disconnect after 10 seconds
             pipe_conn.settimeout(10)
             print(f"[STATUS] Listening on master port {addr}")
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
@@ -92,30 +107,17 @@ class SocketServer:
             pipes_list.append(pipe_conn)
         return pipes_list
 
-    def send_chunk(self, conn, pipes_list):
-        try:
-            while True:
-                # Wait for the client to send the request for specific chunk
-                message = conn.recv(self.MESSAGE_SIZE).decode()
-                if not message:
-                    print("[STATUS] Client disconnected")
-                    break
+    def send_chunk(self, master, message, addr, pipes_list):
+        # Wait for the client to send the request for specific chunk
+        if not message:
+            print("[STATUS] Client disconnected")
 
-                # Remove all ending space in chunk_offset
-                print(f"[REQUEST] Received request for chunk {message.strip()} from {conn}")
+        # Remove all ending space in chunk_offset
+        print(f"[REQUEST] Received request for chunk {message.strip()} from {addr}")
 
-                t = threading.Thread(target=self.handle_send_chunk, args=(message, pipes_list))
-                t.start()
-
-        except ConnectionResetError:
-            print("[ERROR] Connection forcibly closed by the client.")
-        except Exception as e:
-            print(f"[ERROR] {e}")
-        finally:
-            # Ensure connections are properly closed
-            conn.close()
-            for pipe in pipes_list:
-                pipe.close()
+        t = threading.Thread(target=self.handle_send_chunk, args=(message, pipes_list))
+        t.start()
+        t.join()            
 
     def handle_send_chunk(self, message, pipes_list):
         filename, file_size, start_offset, end_offset = eval(message.strip())
