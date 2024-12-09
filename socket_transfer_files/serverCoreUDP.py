@@ -1,8 +1,8 @@
-from msilib import sequence
 import socket
 import os
 import threading
 import random
+import utils
 
 class SocketServerUDP:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -44,6 +44,7 @@ class SocketServerUDP:
                 # Wait for a connection
                 data, addr = server_socket.recvfrom(1024)
                 data = data.decode()
+                data = data.strip()
                 # Split \r\n from message
                 message = data.split("\r\n")[0]
                
@@ -68,9 +69,10 @@ class SocketServerUDP:
         Send a list of available resources to client.
         """
         # Get all files in the resources folder
-        files = os.listdir(self.RESOURCE_PATH)
+        files = utils.list_all_file_in_directory(self.RESOURCE_PATH)
         # Convert to string
-        files = str(files)
+        files = "LIST\r\n" + str(files)
+        files.ljust(self.MESSAGE_SIZE)
         # Send the list of available resources to client
         server_socket.sendto(files.encode(), addr)
 

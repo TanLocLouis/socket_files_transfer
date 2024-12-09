@@ -1,10 +1,8 @@
-from re import L
 import socket
-import time
-import math
+from turtle import goto
 import utils
 import threading
-import os
+import time
 
 class SocketClientUDP:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -17,6 +15,11 @@ class SocketClientUDP:
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
+    
+    CODE = {
+        "LIST": "LIST",
+    }
+
     
     def connect_to_server(self, filename):
         """
@@ -33,25 +36,29 @@ class SocketClientUDP:
            
     def handle_server_connection(self, main_socket):
         # Request list of available resources
-        message = "LIST\r\n"
-        main_socket.sendto(message.encode(), (self.HOST, self.PORT))
+        while True:
+            message = "LIST\r\n"
+            message = message.ljust(self.MESSAGE_SIZE)
+            main_socket.sendto(message.encode(), (self.HOST, self.PORT))
+            
+            data, addr = main_socket.recvfrom(1024)
+            data = data.decode()
+            data = data.strip()
+            message = data.split("\r\n")[0]
         
-        data, addr = main_socket.recvfrom(1024)
-        data = data.decode()
-        # Convert data to list
-        list_file = eval(data)
+            if message == self.CODE['LIST']:
+                list_file = data.split("\r\n")[1]
+                # Convert data to list
+                list_file = eval(list_file)
 
-        print(utils.setTextColor("green"), end="")
-        print(f"[RESPONE] List of available resources:")
-        print(utils.setTextColor("white"), end="")
-        for file in list_file:
-            print(f"[LIST] |----------{file}----------|")
-        print("Press Enter to continue...")
-        input()
-        
-
-
-
+                print(utils.setTextColor("green"), end="")
+                print(f"[RESPONE] List of available resources:")
+                print(utils.setTextColor("white"), end="")
+                for file in list_file:
+                    print(f"[LIST] |----------{file}----------|")
+                print("Press Enter to continue...")
+                input()
+                break;
         
 s1 = SocketClientUDP()
 s1.connect_to_server("input.txt")

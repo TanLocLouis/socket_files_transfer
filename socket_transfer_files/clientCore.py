@@ -1,4 +1,3 @@
-from doctest import master
 import socket
 import time
 import math

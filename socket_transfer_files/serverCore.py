@@ -1,7 +1,6 @@
 import socket
-import os
 import threading
-import time
+import utils
 
 class SocketServer:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -62,7 +61,6 @@ class SocketServer:
             data = data.decode()
             data = data.strip()
             message = data.split("\r\n")[0]
-            print(f"DEBUG {message}") 
             
             if message == self.CODE["LIST"]:    
                 # Send a list of available resources to client
@@ -74,17 +72,16 @@ class SocketServer:
             elif message == self.CODE["GET"]:
                 # Server return specific chunk to client
                 payload = data.split("\r\n")[1]
-                print(f"DEBUG {payload}")
                 self.send_chunk(master, payload, addr, pipes_list)
 
     def send_resources_list(self, master):
-        list_file = self.list_all_file_in_directory(self.RESOURCE_PATH)
+        list_file = utils.list_all_file_in_directory(self.RESOURCE_PATH)
         # Fill list file with space to make it match standard size
-        list_file = self.standardize_str(str(list_file), self.MESSAGE_SIZE)
+        list_file = utils.standardize_str(str(list_file), self.MESSAGE_SIZE)
         master.sendall(f"{list_file}".encode())
 
     def create_pipes(self, master):
-        master_port = self.find_free_port()
+        master_port = utils.find_free_port(self.HOST)
 
         # Send master to open 4 ports to client
         master.sendall(f"{master_port}".encode())
@@ -130,23 +127,3 @@ class SocketServer:
             id = (start_offset // self.CHUNK_SIZE) % self.PIPES
             pipes_list[id].sendall(data)
             print(f"[RESPOND] Sent chunk {message.strip()} to {pipes_list[id]}")
-
-    def find_free_port(self):
-        """
-        Find a free port on the server.
-        """
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((self.HOST, 0))
-            return s.getsockname()[1]
-
-    def list_all_file_in_directory(self, dir):
-        """
-        List all files in the current directory.
-        """
-        files = os.listdir(dir)
-        return files
-
-    def standardize_str(self, s, n):
-        while len(s) < n:
-            s += " "
-        return s
