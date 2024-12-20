@@ -14,6 +14,7 @@ class SocketServerUDP:
 
     CODE = {
         "LIST": "LIST",
+        "OPEN": "OPEN",
         "GET": "GET",
         "ACK": "ACK"
     }
@@ -52,6 +53,13 @@ class SocketServerUDP:
                 if message == self.CODE['LIST']:
                     print("[REQUEST] Client request list of available resources...")
                     self.send_resources_list(server_socket, addr)
+                    
+                # Open more 4 socket connections
+                if message == self.CODE['OPEN']:
+                    # Create a new thread to handle the new connection
+                    print(f"[REQUEST] Client request to open more {self.PIPES} sockets...")
+                    self.create_pipes(server_socket, addr)
+
                 # Send a chunk
                 if message == self.CODE['GET']:
                     print("[REQUEST] Client request chunk...")
@@ -75,7 +83,28 @@ class SocketServerUDP:
         files.ljust(self.MESSAGE_SIZE)
         # Send the list of available resources to client
         server_socket.sendto(files.encode(), addr)
-
+       
+    def create_pipes(self, server_socket, addr):
+        """
+        Open more socket connections.
+        """
+        pipes_list = []
+        for i in range(self.PIPES):
+            # Find free port
+            free_port = utils.find_free_port(self.HOST);
+            
+            # Send the port to client
+            server_socket.sendto(f"{free_port}".ljust(self.MESSAGE_SIZE).encode(), addr)
+            
+            # Create a new socket connection
+            new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            new_socket.bind((self.HOST, free_port))
+            pipes_list.append(new_socket)
+            
+        return pipes_list
+            
+            
+      
 s1 = SocketServerUDP()
 s1.create_server()
             
