@@ -17,7 +17,7 @@ class SocketServer:
     }
 
     def __init__(self) -> None:
-        print("[STATUS] Initializing the server...")
+        print("[STATUS] Initializing the TCP server...")
 
     def create_server(self):
         """

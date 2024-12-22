@@ -5,7 +5,7 @@
     <ProjectGuid>9ed8943d-6a72-4aed-8ef8-62dfd5a33491</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>clientCoreUDP.py</StartupFile>
+    <StartupFile>server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

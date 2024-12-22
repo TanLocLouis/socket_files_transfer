@@ -1,7 +1,5 @@
 import socket
-import os
 import threading
-import random
 import utils
 
 class SocketServerUDP:
@@ -20,7 +18,7 @@ class SocketServerUDP:
     }
 
     def __init__(self) -> None:
-        print("[STATUS] Initializing the server...")
+        print("[STATUS] Initializing the UDP server...")
 
     def create_server(self):
         """
@@ -92,19 +90,35 @@ class SocketServerUDP:
         for i in range(self.PIPES):
             # Find free port
             free_port = utils.find_free_port(self.HOST);
-            
+            print(f"[STATUS] Found free port: {free_port} for client {addr[0]}:{addr[1]}")
             # Send the port to client
             server_socket.sendto(f"{free_port}".ljust(self.MESSAGE_SIZE).encode(), addr)
             
             # Create a new socket connection
-            new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            new_socket.bind((self.HOST, free_port))
-            pipes_list.append(new_socket)
+            t = threading.Thread(target=self.handle_create_pipes, args=(free_port, ))
+            t.start()
+            pipes_list.append(free_port)
             
         return pipes_list
             
+    def handle_create_pipes(self, free_port):
+        new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        new_socket.bind((self.HOST, free_port))
+        
+        while True:
+            data, addr = new_socket.recvfrom(self.MESSAGE_SIZE)
+            data = data.decode()
+            message = data.split("\r\n")[0]
+            filename = data.split("\r\n")[1]
+            filesize = data.split("\r\n")[2]
+            start_offset = int(data.split("\r\n")[3])
+            end_offset = int(data.split("\r\n")[4])
             
-      
-s1 = SocketServerUDP()
-s1.create_server()
-            
+            if message == self.CODE['GET']: 
+               with open(self.RESOURCE_PATH + filename, "rb") as file:
+                    file.seek(start_offset)
+                    chunk = file.read(end_offset - start_offset + 1)
+                    send_data = f"{data}\r\n".encode() + chunk
+                    
+                    new_socket.sendto(send_data, addr);
+                    print(f"[RESPOND] Sent chunk {data.strip()} to {addr}") 

@@ -45,20 +45,14 @@ class SocketClient:
     def handle_server_connection(self, filename, main_socket):
         # Receive a list of available resources from server can be downloaded
         list_file = self.receive_resource_list(main_socket)
-        # Remove the spaces
-        list_file = list_file.strip()
-        list_file = eval(list_file)  # Convert to list
-
-        print(utils.setTextColor("green"), end="")
-        print(f"[RESPONE] List of available resources:")
-        print(utils.setTextColor("white"), end="")
-        for file in list_file:
-            print(f"[LIST] |----------{file}----------|")
-        print("Press Enter to continue...")
-        input()
 
         # Create 4 pipes for data transfer
         socket_list = self.create_pipes(main_socket)
+        
+        # Send the request to download the file
+        self.send_request(filename, main_socket, socket_list)
+        
+    def send_request(self, filename, main_socket, socket_list):
         # Read the input file
         needed_files = self.parse_input_file(filename)
         received_files = []
@@ -93,12 +87,25 @@ class SocketClient:
 
         # Confirmation
         self.confirm_download(needed_files, received_files)
-
+        
     def receive_resource_list(self, main_socket):
         message = "LIST\r\n"
         message = message.ljust(self.MESSAGE_SIZE)
         main_socket.sendall(message.encode())
         list_file = main_socket.recv(self.MESSAGE_SIZE).decode()
+
+        # Remove the spaces
+        list_file = list_file.strip()
+        list_file = eval(list_file)  # Convert to list
+
+        print(utils.setTextColor("green"), end="")
+        print(f"[RESPONE] List of available resources:")
+        print(utils.setTextColor("white"), end="")
+        for file in list_file:
+         print(f"[LIST] |----------{file}----------|")
+        print("Press Enter to continue...")
+        input()
+                
         return list_file
 
     def create_pipes(self, main_socket):

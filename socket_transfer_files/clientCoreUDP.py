@@ -1,6 +1,9 @@
+from re import L
 import socket
-from turtle import goto
+from token import NUMBER
 import utils
+import math
+import os
 import threading
 import time
 
@@ -11,36 +14,142 @@ class SocketClientUDP:
     PIPES = 4
     METADATA_SIZE = 1024
 
-    CHUNK_SIZE = 1048576  # 1 MB
+    CHUNK_SIZE = 32768  # 32 KB
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
+    
+    DOWNLOAD_DIR = "./"
     
     CODE = {
         "LIST": "LIST",
     }
     
-    def connect_to_server(self, filename):
+    def connect_to_server(self, filename, download_dir, server_ip):
         """
         Connect to the server and send the request to download the file.
         """
         
-        # self.HOST = server_ip
+        self.DOWNLOAD_DIR = download_dir
+        self.HOST = server_ip
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            self.handle_server_connection(main_socket)
+            self.handle_server_connection(main_socket, filename)
+        except Exception as e:
+            print(utils.setTextColor("red"), end="")
+            print(f"[ERROR] An error occurred: {e}")
+            print(utils.setTextColor("white"), end="")
         finally:
             # Close the socket
             main_socket.close()
            
-    def handle_server_connection(self, main_socket):
+    def handle_server_connection(self, main_socket, filename):
         # Request list of available resources
         self.get_list_files_from_server(main_socket)
         
         # Create 4 more socket connections
         socket_list = self.open_socket_connections(main_socket)
-        for socket in socket_list:
-            print(f"[STATUS] Socket {socket} is open on {self.HOST}")
+
+        # Send the request to download the file
+        self.send_request(socket_list, filename)
+        
+    def send_request(self, socket_list, filename):
+        # Read the input file
+        needed_files = self.parse_input_file(filename)
+        received_files = []
+        cur_index = 0
+       
+        while len(received_files) < len(needed_files):
+            # Reupdate list of files needed to download
+            needed_files = self.parse_input_file(filename)
+            if len(received_files) >= len(needed_files):
+                break
+
+            # Check if the file is already downloaded
+            if utils.check_file_exist(self.DOWNLOAD_DIR + needed_files[cur_index]["name"]):
+                print(utils.setTextColor("green"), end="")
+                print(
+                    f"[STATUS] File {needed_files[cur_index]} has already been downloaded"
+                )
+                print(utils.setTextColor("white"), end="")
+                received_files.append(needed_files[cur_index]["name"])
+                cur_index += 1
+                time.sleep(3)
+                continue
+
+            # Receive the chunk from the server
+            self.receive_chunk(needed_files, cur_index, socket_list) 
+
+            # Check file size to ensure file is transferred successfully
+            cur_index += self.check_file_integrity(
+                cur_index, needed_files, received_files
+            )
+
+            time.sleep(3)
+
+        # Confirmation
+        self.confirm_download(needed_files, received_files)
+
+    def receive_chunk(self, needed_files, cur_index, socket_list):
+        """
+        Receive a chunk from the server.
+        """
+        # Send the chunk message which client want to download from server
+        cur_file_size = needed_files[cur_index]["size_bytes"]
+        filename = needed_files[cur_index]["name"]
+ 
+        number_of_chunk = math.ceil(cur_file_size / self.CHUNK_SIZE)
+        threads_list = [] 
+
+        for chunk in range(number_of_chunk):
+            # Print the status     
+            print(
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / number_of_chunk * 100)}%"
+            )
+        
+            # time.sleep(0.1)
+            start_offset = chunk * self.CHUNK_SIZE
+            end_offset = (chunk + 1) * self.CHUNK_SIZE - 1
+            if end_offset > cur_file_size - 1:
+                end_offset = cur_file_size - 1
+
+            # Send message to server
+            message = f"GET\r\n{filename}\r\n{needed_files[cur_index]['size_bytes']}\r\n{start_offset}\r\n{end_offset}\r\n"
+            print(f"[REQUEST] Requesting chunk {message}")
+            # Make the message len MESSAGE_SIZE
+            message = message.ljust(self.MESSAGE_SIZE)
+            
+            # Receive the chunk from server through 4 sockets
+            id = start_offset // self.CHUNK_SIZE % self.PIPES
+            t = threading.Thread(
+                target=self.handle_receive_chunk, args=(id, socket_list, message, chunk, filename)
+            )
+            t.start()
+            threads_list.append(t)
+            
+        for t in threads_list:
+            t.join()    
+
+        print("[STATUS] All chunks has been received: 100%")
+        
+        # Concatenate those files
+        for id in range(number_of_chunk):
+            with open(f"{self.DOWNLOAD_DIR}{needed_files[cur_index]['name']}", "ab") as file:
+                with open(
+                    f"{needed_files[cur_index]['name']}_{id}", "rb"
+                ) as chunk_file:
+                    file.write(chunk_file.read())
+                os.remove(f"{needed_files[cur_index]['name']}_{id}")
+
+
+    def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
+        slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        slave.sendto(message.encode(), (self.HOST, socket_list[id]))
+        data, addr = slave.recvfrom(self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+        if data:
+            with open(f"{filename}_{chunk}", "wb") as file:
+                file.write(data[self.MESSAGE_SIZE + self.DELIMETER_SIZE:])
+
 
     def get_list_files_from_server(self, main_socket):
         message = "LIST\r\n"
@@ -90,7 +199,68 @@ class SocketClientUDP:
         print(f"[STATUS] Connected to server {self.HOST} on 4 new ports")
         
         return socket_list 
-            
-s1 = SocketClientUDP()
-s1.connect_to_server("input.txt")
-         
+    
+    def parse_input_file(self, file_path):
+        """
+        Reads a file with image data and returns a list of dictionaries with the parsed data.
+
+        Args:
+         file_path (str): The path to the file containing the image data.
+
+        Returns:
+         list: A list of dictionaries with keys 'name', 'size', and 'size_bytes'.
+        """
+        data = []
+
+        try:
+            with open(file_path, "r") as file:
+                for line in file:
+                    line = line.strip()
+                    if line:
+                        # Split the line into components
+                        parts = line.split()
+                        if len(parts) == 2:
+                            name, size = parts
+                            # Parse size in bytes
+                            size_bytes = int(size[:-1].replace(",", ""))
+                            # Append the data as a dictionary
+                            data.append(
+                                {"name": name, "size": size, "size_bytes": size_bytes}
+                            )
+        except Exception as e:
+            print(utils.setTextColor("red"), end="")
+            print(f"[ERROR] An error occurred: {e}")
+            print(utils.setTextColor("white"), end="")
+
+        return data
+    
+    def check_file_integrity(self, cur_index, needed_files, received_files):
+        if (
+            utils.get_file_size(self.DOWNLOAD_DIR + needed_files[cur_index]["name"])
+            == needed_files[cur_index]["size_bytes"]
+        ):
+            print(utils.setTextColor("green"), end="")
+            print(
+                 f"[SUCCESS] File {needed_files[cur_index]} has been downloaded successfully"
+            )
+            print(utils.setTextColor("white"), end="")
+            received_files.append(needed_files[cur_index]["name"])
+            return 1
+        else:
+            print(utils.setTextColor("green"), end="")
+            print(
+            f"[FAIL] File {needed_files[cur_index]} has been downloaded unsuccessfully"
+            )
+            print(
+            f"[DETAIL] Expected file size: {needed_files[cur_index]['size_bytes']} bytes"
+            )
+            print(
+            f"[DETAIL] Received file size: {utils.get_file_size(needed_files[cur_index]['name'])} bytes"
+            )
+            print(utils.setTextColor("white"), end="")
+            return 0
+
+    def confirm_download(self, needed_files, received_files):
+        print(utils.setTextColor("green"), end="")
+        print(f"Downloads successfully {len(received_files)}/{len(needed_files)} files")
+        print(utils.setTextColor("white"), end="") 
