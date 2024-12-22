@@ -19,6 +19,9 @@ class SocketClientUDP:
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
     
+    CHECHSUM_LEN = 32
+    TIMEOUT = 3 # 3 seconds for timeout rdt
+
     DOWNLOAD_DIR = "./"
     
     CODE = {
@@ -107,7 +110,7 @@ class SocketClientUDP:
                 f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / number_of_chunk * 100)}%"
             )
         
-            # time.sleep(0.1)
+            time.sleep(0.1)
             start_offset = chunk * self.CHUNK_SIZE
             end_offset = (chunk + 1) * self.CHUNK_SIZE - 1
             if end_offset > cur_file_size - 1:
@@ -144,12 +147,29 @@ class SocketClientUDP:
 
     def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
         slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        slave.sendto(message.encode(), (self.HOST, socket_list[id]))
-        data, addr = slave.recvfrom(self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
-        if data:
-            with open(f"{filename}_{chunk}", "wb") as file:
-                file.write(data[self.MESSAGE_SIZE + self.DELIMETER_SIZE:])
+        slave.settimeout(self.TIMEOUT)       
 
+        # rdt checksum, timeout
+        is_checksum_matched = False
+        while not is_checksum_matched:
+            # Send the message to server    
+            slave.sendto(message.encode(), (self.HOST, socket_list[id]))
+            data, addr = slave.recvfrom(self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+            if data:
+                checksum = data[:self.CHECHSUM_LEN]
+                print(f"DEBUG: {checksum}")
+                chunk_data = data[self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE:]
+                chunk_data_checksum = utils.calculate_checksum(chunk_data)
+                if chunk_data_checksum != checksum:
+                    print(utils.setTextColor("red"), end="")
+                    print(f"[ERROR] Checksum is not matched")
+                    print(utils.setTextColor("white"), end="")
+                    continue
+                else:
+                    is_checksum_matched = True
+                
+                with open(f"{filename}_{chunk}", "wb") as file:
+                    file.write(chunk_data)
 
     def get_list_files_from_server(self, main_socket):
         message = "LIST\r\n"

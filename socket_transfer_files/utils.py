@@ -1,3 +1,4 @@
+import hashlib
 import os
 import socket
 
@@ -83,3 +84,8 @@ def standardize_str(s, n):
         s += " "
     return s
 
+def calculate_checksum(data):
+    """
+    Calculate the checksum of the data.
+    """
+    return hashlib.md5(data).hexdigest().encode()
