@@ -2,6 +2,7 @@ import socket
 import threading
 import utils
 
+
 class SocketServerUDP:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
@@ -115,13 +116,12 @@ class SocketServerUDP:
             end_offset = int(data.split("\r\n")[4])
             
             if message == self.CODE['GET']: 
-               with open(self.RESOURCE_PATH + filename, "rb") as file:
+                print(f"[REQUEST] Client {addr} request chunk {data.strip()} to {addr}") 
+                with open(self.RESOURCE_PATH + filename, "rb") as file:
                     file.seek(start_offset)
                     chunk = file.read(end_offset - start_offset + 1)
                     checksum = utils.calculate_checksum(chunk)
                     send_data = checksum + f"\r\n{data}\r\n".encode() + chunk
-                    print(f"DEBUG: {len(send_data)}")
-                    print(f"DEBUG: {len(checksum)} {len(data)} {len(chunk)}")
                     
                     new_socket.sendto(send_data, addr);
                     print(f"[RESPOND] Sent chunk {data.strip()} to {addr}") 

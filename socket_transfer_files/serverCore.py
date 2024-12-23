@@ -2,6 +2,7 @@ import socket
 import threading
 import utils
 
+
 class SocketServer:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
@@ -9,6 +10,7 @@ class SocketServer:
     PIPES = 4
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
+    TIMEOUT = 60
     
     CODE = {
         "LIST": "LIST",
@@ -41,7 +43,7 @@ class SocketServer:
                     print(f"[STATUS] Server listening on {self.HOST}:{self.PORT}")
                     master, addr = server_socket.accept()
                     # Auto disconnect after 10 seconds
-                    master.settimeout(10)
+                    master.settimeout(self.TIMEOUT)
                     print("[STATUS] Connected by", addr)
 
                     client_thread = threading.Thread(
@@ -97,7 +99,7 @@ class SocketServer:
             # Accept connection on each master port
             pipe_conn, addr = master_socket.accept()
             # Auto disconnect after 10 seconds
-            pipe_conn.settimeout(10)
+            pipe_conn.settimeout(self.TIMEOUT)
             print(f"[STATUS] Listening on master port {addr}")
             # pipe_list.append(threading.Thread(target=self.handlePipe, args=()).start())
 

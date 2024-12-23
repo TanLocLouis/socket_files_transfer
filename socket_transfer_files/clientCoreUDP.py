@@ -1,11 +1,10 @@
-from re import L
 import socket
-from token import NUMBER
 import utils
 import math
 import os
 import threading
 import time
+
 
 class SocketClientUDP:
     HOST = socket.gethostbyname(socket.gethostname())
@@ -107,7 +106,7 @@ class SocketClientUDP:
         for chunk in range(number_of_chunk):
             # Print the status     
             print(
-                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / number_of_chunk * 100)}%"
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / number_of_chunk * 100)}%..."
             )
         
             time.sleep(0.1)
@@ -119,6 +118,7 @@ class SocketClientUDP:
             # Send message to server
             message = f"GET\r\n{filename}\r\n{needed_files[cur_index]['size_bytes']}\r\n{start_offset}\r\n{end_offset}\r\n"
             print(f"[REQUEST] Requesting chunk {message}")
+            print()
             # Make the message len MESSAGE_SIZE
             message = message.ljust(self.MESSAGE_SIZE)
             
@@ -144,7 +144,6 @@ class SocketClientUDP:
                     file.write(chunk_file.read())
                 os.remove(f"{needed_files[cur_index]['name']}_{id}")
 
-
     def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
         slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         slave.settimeout(self.TIMEOUT)       
@@ -155,9 +154,9 @@ class SocketClientUDP:
             # Send the message to server    
             slave.sendto(message.encode(), (self.HOST, socket_list[id]))
             data, addr = slave.recvfrom(self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+            print(f"[RESPOND] Received chunk successful")
             if data:
                 checksum = data[:self.CHECHSUM_LEN]
-                print(f"DEBUG: {checksum}")
                 chunk_data = data[self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE:]
                 chunk_data_checksum = utils.calculate_checksum(chunk_data)
                 if chunk_data_checksum != checksum:
@@ -187,10 +186,12 @@ class SocketClientUDP:
             list_file = eval(list_file)
 
             print(utils.setTextColor("green"), end="")
-            print(f"[RESPONE] List of available resources:")
+            print(f"[RESPOND] List of available resources:")
             print(utils.setTextColor("white"), end="")
+            print(50*"-")
             for file in list_file:
-                print(f"[LIST] |----------{file}----------|")
+                print(file)
+            print(50*"-")
             print("Press Enter to continue...")
             input()
     

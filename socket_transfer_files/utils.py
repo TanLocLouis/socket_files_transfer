@@ -6,10 +6,8 @@ import socket
 def clearScreen():
     os.system("cls")
 
-
 def gotoxy(x, y):
     print("\033[%d;%dH" % (x, y), end="")
-
 
 def setTextColor(color):
     if color == "red":
@@ -29,7 +27,6 @@ def setTextColor(color):
     else:
         return "\033[0m"
 
-
 # -----------------------UTILS FUNCTIONS FOR CONSOLE-----------------------#
 
 
@@ -39,13 +36,11 @@ def get_file_size(filename):
     """
     return os.path.getsize(filename)
 
-
 def check_file_exist(filename):
     """
     Check if the file exists.
     """
     return os.path.exists(filename)
-
 
 def count_files_with_prefix(directory, prefix):
     count = 0

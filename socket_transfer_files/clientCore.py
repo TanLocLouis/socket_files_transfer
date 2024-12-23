@@ -99,10 +99,12 @@ class SocketClient:
         list_file = eval(list_file)  # Convert to list
 
         print(utils.setTextColor("green"), end="")
-        print(f"[RESPONE] List of available resources:")
+        print(f"[RESPOND] List of available resources:")
         print(utils.setTextColor("white"), end="")
+        print(50*"-")
         for file in list_file:
-         print(f"[LIST] |----------{file}----------|")
+            print(file)
+        print(50*"-")
         print("Press Enter to continue...")
         input()
                 
@@ -193,7 +195,7 @@ class SocketClient:
 
             # Progress bar
             print(
-                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%"
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%..."
             )
 
             print(f"[RESPOND] Received chunk {message.strip()}")
