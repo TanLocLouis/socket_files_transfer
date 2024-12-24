@@ -4,7 +4,7 @@ import utils
 
 
 class SocketServerUDP:
-    HOST = socket.gethostbyname(socket.gethostname())
+    HOST = "192.168.31.181"
     PORT = 6969
     HEADER_SIZE = 8
     PIPES = 4

@@ -19,9 +19,9 @@ class SocketClientUDP:
     MESSAGE_SIZE = 256
     
     CHECHSUM_LEN = 32
-    TIMEOUT = 3 # 3 seconds for timeout rdt
+    TIMEOUT = 3 # 3 second for NAK 
 
-    DOWNLOAD_DIR = "./"
+    DOWNLOAD_DIR = os.getcwd()
     
     CODE = {
         "LIST": "LIST",
@@ -106,7 +106,7 @@ class SocketClientUDP:
         for chunk in range(number_of_chunk):
             # Print the status     
             print(
-                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / number_of_chunk * 100)}%..."
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix(os.getcwd(), filename) / number_of_chunk * 100)}%..."
             )
         
             time.sleep(0.1)
@@ -147,13 +147,23 @@ class SocketClientUDP:
     def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
         slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         slave.settimeout(self.TIMEOUT)       
-
+        
         # rdt checksum, timeout
         is_checksum_matched = False
+        isNAK = False;
         while not is_checksum_matched:
             # Send the message to server    
             slave.sendto(message.encode(), (self.HOST, socket_list[id]))
-            data, addr = slave.recvfrom(self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+            try:
+                data, addr = slave.recvfrom(self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE)
+            except:
+                isNAK = True
+            if isNAK:
+                isNAK = False
+                # Reopen socket
+                slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                break;
+
             print(f"[RESPOND] Received chunk successful")
             if data:
                 checksum = data[:self.CHECHSUM_LEN]

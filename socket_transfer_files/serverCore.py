@@ -4,7 +4,7 @@ import utils
 
 
 class SocketServer:
-    HOST = socket.gethostbyname(socket.gethostname())
+    HOST = "192.168.31.181"
     PORT = 6969
     HEADER_SIZE = 8
     PIPES = 4
@@ -123,6 +123,7 @@ class SocketServer:
         with open(self.RESOURCE_PATH + filename, "rb") as file:
             file.seek(start_offset)
             chunk = file.read(end_offset - start_offset + 1)
+            message = message.ljust(self.MESSAGE_SIZE)
             data = f"{message}\r\n".encode() + chunk
 
             self.CHUNK_SIZE = end_offset - start_offset + 1

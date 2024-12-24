@@ -1,3 +1,4 @@
+from inspect import EndOfBlock
 import socket
 import time
 import math
@@ -18,7 +19,7 @@ class SocketClient:
     DELIMETER_SIZE = 2  # for \r\n
     MESSAGE_SIZE = 256
     
-    DOWNLOAD_DIR = "./"
+    DOWNLOAD_DIR = os.getcwd()
 
     def connect_to_server(self, filename, download_dir, server_ip):
         """
@@ -157,13 +158,13 @@ class SocketClient:
             ]
             print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len MESSAGE_SIZE
-            message = ("GET\r\n" + str(message)).ljust(self.MESSAGE_SIZE)
-            main_socket.sendall(message.encode())
+            message_str = ("GET\r\n" + str(message)).ljust(self.MESSAGE_SIZE)
+            main_socket.sendall(message_str.encode())
 
             # Receive the chunk from server through 4 pipes
             id = start_offset // self.CHUNK_SIZE % self.PIPES
             t = threading.Thread(
-                target=self.handle_receive_chunk, args=(id, socket_list)
+                target=self.handle_receive_chunk, args=(message, id, socket_list)
             )
             t.start()
             threads_list.append(t)
@@ -183,19 +184,25 @@ class SocketClient:
 
     def handle_receive_chunk(
         self,
+        message,    
         id,
         socket_list,
     ):
-        data = socket_list[id].recv(
-            self.MESSAGE_SIZE + self.DELIMETER_SIZE + self.CHUNK_SIZE
-        )
+        filename, file_size, start_offset, end_offset = message
+        chunk_size = int(end_offset) - int(start_offset) + 1
+
+        data = socket_list[id].recv(1)
+        while len(data) < self.MESSAGE_SIZE + self.DELIMETER_SIZE + chunk_size:
+            data += socket_list[id].recv(
+                1
+            )
+            
         if data:
             message, chunk_data = data.split(b"\r\n", 1)
             filename, file_size, start_offset, end_offset = eval(message.strip())
-
             # Progress bar
             print(
-                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix("./", filename) / self.PIPES * 100)}%..."
+                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix(os.getcwd(), filename) / self.PIPES * 100)}%..."
             )
 
             print(f"[RESPOND] Received chunk {message.strip()}")
