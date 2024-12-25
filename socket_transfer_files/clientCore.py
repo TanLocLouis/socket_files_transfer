@@ -156,7 +156,7 @@ class SocketClient:
                 start_offset,
                 end_offset,
             ]
-            print(f"[REQUEST] Requesting chunk {message}")
+            # print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len MESSAGE_SIZE
             message_str = ("GET\r\n" + str(message)).ljust(self.MESSAGE_SIZE)
             main_socket.sendall(message_str.encode())
@@ -205,7 +205,7 @@ class SocketClient:
                 f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix(os.getcwd(), filename) / self.PIPES * 100)}%..."
             )
 
-            print(f"[RESPOND] Received chunk {message.strip()}")
+            # print(f"[RESPOND] Received chunk {message.strip()}")
 
             with open(f"{filename}_{id}", "wb") as file:
                 file.write(chunk_data)

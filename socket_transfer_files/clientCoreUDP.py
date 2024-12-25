@@ -11,7 +11,6 @@ class SocketClientUDP:
     PORT = 6969
     INPUT_UPDATE_INTERVAL = 5
     PIPES = 4
-    METADATA_SIZE = 1024
 
     CHUNK_SIZE = 32768  # 32 KB
     HEADER_SIZE = 8
@@ -117,8 +116,7 @@ class SocketClientUDP:
 
             # Send message to server
             message = f"GET\r\n{filename}\r\n{needed_files[cur_index]['size_bytes']}\r\n{start_offset}\r\n{end_offset}\r\n"
-            print(f"[REQUEST] Requesting chunk {message}")
-            print()
+            # print(f"[REQUEST] Requesting chunk {message}")
             # Make the message len MESSAGE_SIZE
             message = message.ljust(self.MESSAGE_SIZE)
             
@@ -144,11 +142,12 @@ class SocketClientUDP:
                     file.write(chunk_file.read())
                 os.remove(f"{needed_files[cur_index]['name']}_{id}")
 
+    recv_seq = set()
     def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
         slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         slave.settimeout(self.TIMEOUT)       
         
-        # rdt checksum, timeout
+        # rdt checksum, timeout, set
         is_checksum_matched = False
         isNAK = False;
         while not is_checksum_matched:
@@ -162,11 +161,12 @@ class SocketClientUDP:
                 isNAK = False
                 # Reopen socket
                 slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                break;
+                break
 
-            print(f"[RESPOND] Received chunk successful")
+            # print(f"[RESPOND] Received chunk successful")
             if data:
                 checksum = data[:self.CHECHSUM_LEN]
+                
                 chunk_data = data[self.CHECHSUM_LEN + self.DELIMETER_SIZE + self.MESSAGE_SIZE + self.DELIMETER_SIZE:]
                 chunk_data_checksum = utils.calculate_checksum(chunk_data)
                 if chunk_data_checksum != checksum:
@@ -176,6 +176,15 @@ class SocketClientUDP:
                     continue
                 else:
                     is_checksum_matched = True
+               
+                # Check if the chunk is duplicate
+                if checksum in self.recv_seq:
+                    print(utils.setTextColor("red"), end="")
+                    print(f"[ERROR] Duplicate chunk skipped")
+                    print(utils.setTextColor("white"), end="")
+                    continue
+                else:
+                    self.recv_seq.add(checksum)
                 
                 with open(f"{filename}_{chunk}", "wb") as file:
                     file.write(chunk_data)
@@ -185,7 +194,7 @@ class SocketClientUDP:
         message = message.ljust(self.MESSAGE_SIZE)
         main_socket.sendto(message.encode(), (self.HOST, self.PORT))
         
-        data, addr = main_socket.recvfrom(1024)
+        data, addr = main_socket.recvfrom(self.MESSAGE_SIZE)
         data = data.decode()
         data = data.strip()
         message = data.split("\r\n")[0]
@@ -218,7 +227,7 @@ class SocketClientUDP:
         # Connect to master port to create 4 pipe
         socket_list = []
         for i in range(self.PIPES):
-            data, addr = main_socket.recvfrom(1024)
+            data, addr = main_socket.recvfrom(self.MESSAGE_SIZE)
             data = data.decode()
             data = data.strip()
             new_socket = int(data);
