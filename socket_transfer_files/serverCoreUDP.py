@@ -7,7 +7,7 @@ class SocketServerUDP:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     HEADER_SIZE = 8
-    PIPES = 4
+    PIPES = 20
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
 

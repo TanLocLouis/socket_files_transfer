@@ -11,7 +11,7 @@ class SocketClient:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     INPUT_UPDATE_INTERVAL = 5
-    PIPES = 4
+    PIPES = 100
     METADATA_SIZE = 1024
 
     CHUNK_SIZE = 1048576  # 1 MB

@@ -10,7 +10,7 @@ class SocketClientUDP:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     INPUT_UPDATE_INTERVAL = 5
-    PIPES = 4
+    PIPES = 20
 
     CHUNK_SIZE = 32768  # 32 KB
     HEADER_SIZE = 8
@@ -18,7 +18,7 @@ class SocketClientUDP:
     MESSAGE_SIZE = 256
     
     CHECHSUM_LEN = 32
-    TIMEOUT = 3 # 3 second for NAK 
+    TIMEOUT = 0.5 # 3 second for NAK 
 
     DOWNLOAD_DIR = os.getcwd()
     
@@ -101,14 +101,14 @@ class SocketClientUDP:
  
         number_of_chunk = math.ceil(cur_file_size / self.CHUNK_SIZE)
         threads_list = [] 
-
+        
+        recv_chunk = dict()
         for chunk in range(number_of_chunk):
             # Print the status     
             print(
-                f"[PROGRESS] Downloading file {filename}: {int(utils.count_files_with_prefix(os.getcwd(), filename) / number_of_chunk * 100)}%..."
+                f"[PROGRESS] Downloading file {filename}: {int(len(recv_chunk) / number_of_chunk * 100)}%..."
             )
         
-            time.sleep(0.1)
             start_offset = chunk * self.CHUNK_SIZE
             end_offset = (chunk + 1) * self.CHUNK_SIZE - 1
             if end_offset > cur_file_size - 1:
@@ -122,8 +122,11 @@ class SocketClientUDP:
             
             # Receive the chunk from server through 4 sockets
             id = start_offset // self.CHUNK_SIZE % self.PIPES
+            
+            time.sleep(0.01)                
+
             t = threading.Thread(
-                target=self.handle_receive_chunk, args=(id, socket_list, message, chunk, filename)
+                target=self.handle_receive_chunk, args=(id, socket_list, message, chunk, filename, recv_chunk)
             )
             t.start()
             threads_list.append(t)
@@ -134,20 +137,16 @@ class SocketClientUDP:
         print("[STATUS] All chunks has been received: 100%")
         
         # Concatenate those files
-        for id in range(number_of_chunk):
+        for chunk in range(number_of_chunk):
             with open(f"{self.DOWNLOAD_DIR}{needed_files[cur_index]['name']}", "ab") as file:
-                with open(
-                    f"{needed_files[cur_index]['name']}_{id}", "rb"
-                ) as chunk_file:
-                    file.write(chunk_file.read())
-                os.remove(f"{needed_files[cur_index]['name']}_{id}")
+                file.write(recv_chunk[chunk])
 
     recv_seq = set()
-    def handle_receive_chunk(self, id, socket_list, message, chunk, filename):
+    def handle_receive_chunk(self, id, socket_list, message, chunk, filename, recv_chunk):
         slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         slave.settimeout(self.TIMEOUT)       
         
-        # rdt checksum, timeout, set
+        # rdt checksum, timeout, dict()
         is_checksum_matched = False
         isNAK = False;
         while not is_checksum_matched:
@@ -161,7 +160,7 @@ class SocketClientUDP:
                 isNAK = False
                 # Reopen socket
                 slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                break
+                continue 
 
             # print(f"[RESPOND] Received chunk successful")
             if data:
@@ -186,9 +185,8 @@ class SocketClientUDP:
                 else:
                     self.recv_seq.add(checksum)
                 
-                with open(f"{filename}_{chunk}", "wb") as file:
-                    file.write(chunk_data)
-
+                recv_chunk[chunk] = chunk_data
+        
     def get_list_files_from_server(self, main_socket):
         message = "LIST\r\n"
         message = message.ljust(self.MESSAGE_SIZE)
