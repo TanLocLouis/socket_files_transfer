@@ -192,11 +192,16 @@ class SocketClient:
         chunk_size = int(end_offset) - int(start_offset) + 1
 
         data = socket_list[id].recv(1)
-        while len(data) < self.MESSAGE_SIZE + self.DELIMETER_SIZE + chunk_size:
+        full_size = self.MESSAGE_SIZE + self.DELIMETER_SIZE + chunk_size
+        while len(data) < full_size:
+            recv = self.CHUNK_SIZE;
+            if len(data) + recv > full_size:
+                recv = full_size - len(data)
+                
             data += socket_list[id].recv(
-                1
+                recv
             )
-            
+
         if data:
             message, chunk_data = data.split(b"\r\n", 1)
             filename, file_size, start_offset, end_offset = eval(message.strip())

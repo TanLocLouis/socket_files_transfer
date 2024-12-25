@@ -4,13 +4,14 @@ import utils
 
 
 class SocketServer:
-    HOST = socket.gethostbyname(socket.gethostname())
+    # HOST = socket.gethostbyname(socket.gethostname())
+    HOST = "192.168.31.181"
     PORT = 6969
     HEADER_SIZE = 8
     PIPES = 4
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
-    TIMEOUT = 60
+    TIMEOUT = 600 
     
     CODE = {
         "LIST": "LIST",
