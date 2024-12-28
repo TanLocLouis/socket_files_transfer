@@ -51,10 +51,11 @@ def main():
         c2 = clientCoreUDP.SocketClientUDP()
         c2.connect_to_server(filename, download_dir, server_ip)
     # Press Ctrl + C to exit
+
+    input("Press Ctrl + C to exit program")
     def handle_exit(signum, frame):
         print("\nCtrl+C detected. Exiting program...")
         sys.exit(0)
-
 
     signal.signal(signal.SIGINT, handle_exit)
     # -----------------SETTINGS UP CONSOLE-----------------#

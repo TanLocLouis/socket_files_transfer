@@ -4,8 +4,7 @@ import utils
 
 
 class SocketServer:
-    # HOST = socket.gethostbyname(socket.gethostname())
-    HOST = "192.168.31.181"
+    HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     HEADER_SIZE = 8
     PIPES = 4

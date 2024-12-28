@@ -56,6 +56,14 @@ def find_free_port(HOST):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, 0))
         return s.getsockname()[1]
+    
+def find_free_port_UDP(HOST):
+    """
+    Find a free port on the server.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind((HOST, 0))
+        return s.getsockname()[1]
 
 def list_all_file_in_directory(directory):
     """

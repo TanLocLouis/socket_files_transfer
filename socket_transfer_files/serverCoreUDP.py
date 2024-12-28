@@ -7,9 +7,10 @@ class SocketServerUDP:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     HEADER_SIZE = 8
-    PIPES = 20
+    PIPES = 10
     RESOURCE_PATH = "./resources/"
     MESSAGE_SIZE = 256
+    TIMEOUT = 600
 
     CODE = {
         "LIST": "LIST",
@@ -90,7 +91,7 @@ class SocketServerUDP:
         pipes_list = []
         for i in range(self.PIPES):
             # Find free port
-            free_port = utils.find_free_port(self.HOST);
+            free_port = utils.find_free_port_UDP(self.HOST);
             print(f"[STATUS] Found free port: {free_port} for client {addr[0]}:{addr[1]}")
             # Send the port to client
             server_socket.sendto(f"{free_port}".ljust(self.MESSAGE_SIZE).encode(), addr)
@@ -105,6 +106,7 @@ class SocketServerUDP:
     def handle_create_pipes(self, free_port):
         new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         new_socket.bind((self.HOST, free_port))
+        new_socket.settimeout(self.TIMEOUT)
         
         while True:
             data, addr = new_socket.recvfrom(self.MESSAGE_SIZE)
@@ -124,4 +126,5 @@ class SocketServerUDP:
                     send_data = checksum + f"\r\n{data}\r\n".encode() + chunk
                     
                     new_socket.sendto(send_data, addr);
-                    print(f"[RESPOND] Sent chunk {data.strip()} to {addr}") 
+                    print(f"[RESPOND] Sent chunk {data.strip()} to {addr}")
+        

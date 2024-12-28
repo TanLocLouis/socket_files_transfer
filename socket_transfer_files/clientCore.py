@@ -11,7 +11,7 @@ class SocketClient:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     INPUT_UPDATE_INTERVAL = 5
-    PIPES = 100
+    PIPES = 4 
     METADATA_SIZE = 1024
 
     CHUNK_SIZE = 1048576  # 1 MB
@@ -214,7 +214,7 @@ class SocketClient:
 
             with open(f"{filename}_{id}", "wb") as file:
                 file.write(chunk_data)
-
+                
     def check_file_integrity(self, cur_index, needed_files, received_files):
         if (
             utils.get_file_size(self.DOWNLOAD_DIR + needed_files[cur_index]["name"])

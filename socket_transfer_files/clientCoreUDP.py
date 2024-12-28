@@ -10,7 +10,7 @@ class SocketClientUDP:
     HOST = socket.gethostbyname(socket.gethostname())
     PORT = 6969
     INPUT_UPDATE_INTERVAL = 5
-    PIPES = 20
+    PIPES = 10
 
     CHUNK_SIZE = 32768  # 32 KB
     HEADER_SIZE = 8
@@ -123,7 +123,7 @@ class SocketClientUDP:
             # Receive the chunk from server through 4 sockets
             id = start_offset // self.CHUNK_SIZE % self.PIPES
             
-            time.sleep(0.01)                
+            time.sleep(0.02)                
 
             t = threading.Thread(
                 target=self.handle_receive_chunk, args=(id, socket_list, message, chunk, filename, recv_chunk)
@@ -186,6 +186,8 @@ class SocketClientUDP:
                     self.recv_seq.add(checksum)
                 
                 recv_chunk[chunk] = chunk_data
+        
+        slave.close()
         
     def get_list_files_from_server(self, main_socket):
         message = "LIST\r\n"
