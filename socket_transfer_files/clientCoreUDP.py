@@ -15,10 +15,10 @@ class SocketClientUDP:
     CHUNK_SIZE = 32768  # 32 KB
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
-    MESSAGE_SIZE = 256
+    MESSAGE_SIZE = 1024
     
     CHECHSUM_LEN = 32
-    TIMEOUT = 0.5 # 3 second for NAK 
+    TIMEOUT = 3 # 3 second for NAK 
 
     DOWNLOAD_DIR = os.getcwd()
     
@@ -123,7 +123,7 @@ class SocketClientUDP:
             # Receive the chunk from server through 4 sockets
             id = start_offset // self.CHUNK_SIZE % self.PIPES
             
-            time.sleep(0.02)                
+            time.sleep(0.05)                
 
             t = threading.Thread(
                 target=self.handle_receive_chunk, args=(id, socket_list, message, chunk, filename, recv_chunk)
@@ -159,7 +159,6 @@ class SocketClientUDP:
             if isNAK:
                 isNAK = False
                 # Reopen socket
-                slave = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 continue 
 
             # print(f"[RESPOND] Received chunk successful")

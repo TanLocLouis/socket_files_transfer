@@ -17,7 +17,7 @@ class SocketClient:
     CHUNK_SIZE = 1048576  # 1 MB
     HEADER_SIZE = 8
     DELIMETER_SIZE = 2  # for \r\n
-    MESSAGE_SIZE = 256
+    MESSAGE_SIZE = 1024
     
     DOWNLOAD_DIR = os.getcwd()
 
